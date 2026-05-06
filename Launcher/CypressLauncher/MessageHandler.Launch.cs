@@ -72,8 +72,7 @@ public partial class MessageHandler
 		bool failed = false;
 		if (GameRequiresPatchedExe(Path.Combine(m_gameDirectory, exeName), ref failed) && !failed)
 		{
-			exeName = s_gameToPatchedExecutableName[m_selectedGame];
-			if (!PatchManager.EnsurePatched(m_selectedGame, m_gameDirectory, s_gameToExecutableName[m_selectedGame], exeName, SendStatus))
+			if (!PatchManager.EnsurePatched(m_selectedGame, m_gameDirectory, exeName, GetServerDLLName(), SendStatus))
 				return;
 		}
 		if (failed) return;
@@ -202,8 +201,7 @@ public partial class MessageHandler
 		bool failed = false;
 		if (GameRequiresPatchedExe(Path.Combine(m_gameDirectory, exeName), ref failed) && !failed)
 		{
-			exeName = s_gameToPatchedExecutableName[m_selectedGame];
-			if (!PatchManager.EnsurePatched(m_selectedGame, m_gameDirectory, s_gameToExecutableName[m_selectedGame], exeName, SendStatus))
+			if (!PatchManager.EnsurePatched(m_selectedGame, m_gameDirectory, exeName, GetServerDLLName(), SendStatus))
 				return;
 		}
 		if (failed) return;
@@ -504,11 +502,6 @@ public partial class MessageHandler
 
 				bool hasOtherInstances;
 				lock (m_instanceLock) { hasOtherInstances = m_instances.Count > 0; }
-
-				if (!hasOtherInstances)
-				{
-					try { File.Delete(Path.Combine(m_gameDirectory, s_destDLLName)); } catch { }
-				}
 
 				Environment.SetEnvironmentVariable("EARtPLaunchCode", null);
 

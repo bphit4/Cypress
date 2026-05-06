@@ -23,8 +23,6 @@ public partial class MessageHandler
 	}
 
 	private static readonly string s_destDLLName = "dinput8.dll";
-	private static readonly string s_patchedGW2ExeName = "GW2.PreEAAC.exe";
-	private static readonly string s_patchedBFNExeName = "BFN.PreEAAC.exe";
 	private static readonly string s_launcherSavedataFilename = "launcherdata.json";
 	private static readonly HttpClient s_httpClient = new() { Timeout = TimeSpan.FromSeconds(15) };
 	private const int s_defaultProxyPort = 25201;
@@ -38,12 +36,6 @@ public partial class MessageHandler
 		{ PVZGame.GW1, "PVZ.Main_Win64_Retail.exe" },
 		{ PVZGame.GW2, "GW2.Main_Win64_Retail.exe" },
 		{ PVZGame.BFN, "PVZBattleforNeighborville.exe" }
-	};
-
-	internal static readonly Dictionary<PVZGame, string> s_gameToPatchedExecutableName = new()
-	{
-		{ PVZGame.GW2, s_patchedGW2ExeName },
-		{ PVZGame.BFN, s_patchedBFNExeName }
 	};
 
 	private static readonly Dictionary<PVZGame, string> s_gameToGameName = new()

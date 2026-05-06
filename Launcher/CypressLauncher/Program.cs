@@ -50,6 +50,13 @@ internal static class Program
 		{
 			// ensure working directory is the app folder (start menu shortcuts set it to system32)
 			Environment.CurrentDirectory = AppContext.BaseDirectory;
+
+			if (args.Length > 0)
+			{
+				Environment.ExitCode = PatchCli.Run(args);
+				return;
+			}
+
 #if WINDOWS
 			SetCurrentProcessExplicitAppUserModelID("CypressLauncher.App");
 #endif
