@@ -54,3 +54,8 @@ function buildModifierTitle(name, desc) {
         + '<span class="mod-tooltip-bubble">' + safeDesc + '</span>'
         + '</span>';
 }
+
+function escapeJs(str) {
+    if (!str) return '';
+    return str.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r/g, '\\r').replace(/\n/g, '\\n');
+}
