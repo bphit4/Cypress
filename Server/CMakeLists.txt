@@ -59,9 +59,6 @@ FetchContent_MakeAvailable(
   monocypher
 )
 
-set(EASTL_LOCAL_DIR "${CMAKE_SOURCE_DIR}/vendor/EASTL")
-
-
 # Options for variants
 option(CYPRESS_GW1 "Build GW1 version" OFF)
 option(CYPRESS_GW2 "Build GW2 version" OFF)
@@ -84,14 +81,6 @@ add_library(Cypress SHARED ${SOURCES})
 # Explicitly compile monocypher
 target_sources(Cypress PRIVATE
     ${monocypher_SOURCE_DIR}/src/monocypher.c
-    ${EASTL_LOCAL_DIR}/source/assert.cpp
-    ${EASTL_LOCAL_DIR}/source/string.cpp
-)
-
-set_source_files_properties(
-    ${EASTL_LOCAL_DIR}/source/assert.cpp
-    ${EASTL_LOCAL_DIR}/source/string.cpp
-    PROPERTIES SKIP_PRECOMPILE_HEADERS ON
 )
 
 # Includes
@@ -100,7 +89,6 @@ target_include_directories(Cypress PRIVATE
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/Source
     ${monocypher_SOURCE_DIR}/src
-    ${EASTL_LOCAL_DIR}/include
 )
 
 # Precompiled headers
@@ -141,6 +129,9 @@ else()
 endif()
 
 add_subdirectory(${EA_ROOT_DIR}/EABase)
+add_subdirectory(${EA_ROOT_DIR}/EASTL)
+
+target_include_directories(EASTL PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
 # Variant-specific defines + output name
 if(CYPRESS_GW1)
@@ -162,6 +153,7 @@ endif()
 # Link libraries
 target_link_libraries(Cypress PRIVATE
         EABase
+        EASTL
         minhook
         nlohmann_json
         ws2_32.lib
