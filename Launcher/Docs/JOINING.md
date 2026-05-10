@@ -2,14 +2,12 @@ EA Desktop must be open with an account that owns the game, or you'll get a blac
 
 There are several ways to join a server.
 
-
--- SERVER BROWSER (EASIEST) --
+## SERVER BROWSER (EASIEST)
 1. Open the Server Browser tab.
 2. Filter by game, player count, or search by name.
 3. Double-click a server to join. If it has a password, you'll be prompted for it.
 
-
--- DIRECT / VPN (BY IP) --
+## DIRECT / VPN (BY IP)
 Use this when the host gave you an IP address (public, LAN, or VPN).
 
 1. In the Join tab, make sure Connection Path is set to Direct/VPN.
@@ -17,8 +15,7 @@ Use this when the host gave you an IP address (public, LAN, or VPN).
 3. Enter the Server Password if the host set one.
 4. Click Join Server.
 
-
--- RELAY CODE --
+## RELAY CODE
 Use this when the host is using the EU Relay or a custom relay.
 
 1. In the Join tab, switch Connection Path to Relay.
@@ -26,8 +23,7 @@ Use this when the host is using the EU Relay or a custom relay.
 3. The relay address auto-fills once the code is valid.
 4. Click Join Server.
 
-
--- VPN SETUP (RADMIN / HAMACHI) --
+## VPN SETUP (RADMIN / HAMACHI)
 Only needed if the host is using a VPN instead of port forwarding or relay.
 
 1. Install Radmin VPN from https://www.radmin-vpn.com/ (or similar).

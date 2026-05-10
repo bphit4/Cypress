@@ -2,8 +2,7 @@ EA Desktop must be open with an account that owns the game, or you'll get a blac
 
 There are three ways to host a server.
 
-
--- 1 - EU RELAY (EASIEST) --
+## 1 - EU RELAY (EASIEST)
 No port forwarding or VPN needed. Your server traffic goes through the Cypress relay.
 
 1. In the Host > Network tab, enable EU Relay.
@@ -12,8 +11,7 @@ No port forwarding or VPN needed. Your server traffic goes through the Cypress r
 4. Share the code with players - they enter it in the Join tab under Relay mode.
 5. If "Listed in Browser" is on, your server also shows up in the Server Browser for anyone.
 
-
--- 2 - PORT FORWARDING --
+## 2 - PORT FORWARDING
 Players connect to your public IP through your router.
 
 1. In Command Prompt, run ipconfig. Note your IPv4 address and Default Gateway.
@@ -28,8 +26,7 @@ Players connect to your public IP through your router.
 Your IPv4 can change periodically. Re-check with ipconfig if your server stops working.
 Allow any firewall prompts that appear.
 
-
--- 3 - RADMIN VPN --
+## 3 - RADMIN VPN
 Everyone who wants to join must also install Radmin and join your network.
 
 1. Install Radmin VPN from https://www.radmin-vpn.com/
@@ -38,34 +35,35 @@ Everyone who wants to join must also install Radmin and join your network.
 4. Configure your map & mode, click Start Server.
 5. Share your Radmin network name, password, and IP with players.
 
-
--- SERVER SETTINGS --
+## SERVER SETTINGS
 These are all in the Host > Network tab:
-- Server Password: require a password to join (leave blank for none)
-- Max Players: 1 to 64
-- Listed in Browser: makes your server visible in the Server Browser
-- GCBDB: auto-kicks globally banned cheaters
-- Block ID_ Usernames: rejects players with "ID_" prefix names
-- MOTD: message shown in the server browser (supports formatting)
-- Server Icon: custom 64x64 icon for the browser listing
-- Anticheat: configurable server-side cheat prevention (Host > Anticheat tab)
+- **Server Password**: require a password to join (leave blank for none)
+- **Max Players**: 1 to 64
+- **Listed in Browser**: makes your server visible in the Server Browser
+- **GCBDB**: auto-kicks globally banned cheaters
+- **Block ID_ Usernames**: rejects players with "ID_" prefix names
+- **MOTD**: message shown in the server browser (supports formatting)
+- **Server Icon**: custom 64x64 icon for the browser listing
+- **Anticheat**: configurable server-side cheat prevention (Host > Anticheat tab)
 
-For level/mode setup, check the LevelInfo files. For playlists, check PlaylistReadMe.txt.
---DISCLAIMER--
-It is advised you have EA Desktop opened before starting or joining a server. This is due to the game having internal checks. If it doesn't detect EA Desktop opened, with an account that legitimately owns the game, none of the game's content will load, and you will end up in a black screen. 
+For level/mode setup, check the LevelInfo files. For playlists, check PlaylistReadMe.md.
 
-Hiya! Welcome to the ReadMe for setting up a private server! In this ReadMe, we are going to go over two methods of setting servers up.
+---
 
+**DISCLAIMER**
+It is advised you have EA Desktop opened before starting or joining a server. This is due to the game having internal checks. If it doesn't detect EA Desktop opened, with an account that legitimately owns the game, none of the game's content will load, and you will end up in a black screen.
 
+---
+
+There's two methods of setting servers up.
 
 1: Port Forwarding
 2: Radmin (or anything similar)
 
-
--- 1 - PORT FORTWARING --
+## 1 - PORT FORWARDING
 For this method, players will connect to you through your router's IP Address.
 
-1. In Command Prompt, enter the command, ipconfig. This will display current your current IP configuration. You'll have to find your router's Default Gateway, The correct one will be listed under what you're currently connected to, whether it's through Ethernet or WiFi. Copy the gateway into your preferred browser. 
+1. In Command Prompt, enter the command, ipconfig. This will display current your current IP configuration. You'll have to find your router's Default Gateway, The correct one will be listed under what you're currently connected to, whether it's through Ethernet or WiFi. Copy the gateway into your preferred browser.
 
 2. In most cases, the gateway will ask for a password before you continue. This password is normally somewhere labeled on your router. Enter the password, and enter through
 
@@ -79,12 +77,11 @@ If there's anything regarding Protocols, set it to UDP.
 If there's anything regarding Device IP, or IP Address, or anything similar, that is your IPv4 address, again, found via ipconfig in command prompt. Under the same category you found the Default Gateway.
 If there's an option to enable the setup, enable it, of course.
 
-5. For the Device IP in the launcher, that is where your IPv4 address goes. 
+5. For the Device IP in the launcher, that is where your IPv4 address goes.
 NOTE: Every so often, the IPv4 will change, so don't fret if your dedicated server closes moments after launching! You'll have to check it every so often to ensure the server's listening to the right address!
 
-Save once you're done. 
+Save once you're done.
 
-On the right side of the 
 For information on setting up the Level and Inclusion, check out the LevelInfo Readmes.
 If you wish to add a password, set up a password in the Set Server Password box. Leave it blank if you don't want a password.
 If you wish to launch a server with mods, head to the furthest left of the launcher, click Use Mods, and select the ModPack.
@@ -94,7 +91,7 @@ Be sure to allow any Firewall permissions if there are any.
 Congratulations, if done properly, you should be able to host dedicated servers! For people to join you, you'll have to provide them your router's public IP address. Quickest way to find what your public IP is through IP Chicken at https://ipchicken.com/ If you want your IP to have a unique hostname, you can use something like no-ip at https://www.noip.com/
 
 
--- 2 - RADMIN --
+## 2 - RADMIN
 NOTE: If you plan to host a server using Radmin, anyone who wants to join you must also install Radmin, and join your network.
 
 1. Install Radmin if you haven't. You can get it at https://www.radmin-vpn.com/
@@ -111,5 +108,4 @@ Be sure to allow any Firewall permissions if there are any.
 
 If you want others to join you, Make sure they are using Radmin as well, have them join your network, and provide them the IP Radmin assigned to you.
 
-
-If you want to join servers, Check out the JoiningReadMe!
+If you want to join servers, Check out the [Joining](./JOINING.md)
