@@ -44,7 +44,9 @@ namespace fb
             Int = value;
         }
     };
+#ifdef CYPRESS_GW1
     static_assert( sizeof( eastl::pair<eastl::string, PVZRecordInfo> ) == 0x68 );
+#endif
 
     struct PresencePVZUpdateByteVaultRecordMessage : public Message
     {

@@ -213,6 +213,7 @@ DEFINE_HOOK(
 	Orig_fb_OnlineManager_connectToAddress(thisPtr, ipAddr, serverPassword);
 }
 
+#ifndef CYPRESS_BFN
 DEFINE_HOOK(
 	fb_OnlineManager_onGotDisconnected,
 	__fastcall,
@@ -245,6 +246,7 @@ DEFINE_HOOK(
 
 	exit(0xCC1);
 }
+#endif
 
 #ifdef CYPRESS_BFN
 DEFINE_HOOK(

@@ -45,7 +45,9 @@ namespace fb
             Bool = value;
         }
     };
+#ifdef CYPRESS_GW2
     static_assert(sizeof(PVZRecordInfo) == 0x30);
+#endif
 
     struct PresencePVZUpdateByteVaultRecordMessage : public Message
     {
