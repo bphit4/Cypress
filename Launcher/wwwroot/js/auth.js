@@ -1,5 +1,32 @@
 // ea auth login screen logic
 
+window._eaLoggedIn = false;
+
+function updateProfileIdentitySection() {
+    var loggedIn = !!window._eaLoggedIn;
+    var signedOutBlock = document.getElementById('profileSignedOutBlock');
+    var signedInBlock = document.getElementById('profileSignedInBlock');
+    var usernameField = document.getElementById('username');
+    var usernameHint = document.getElementById('usernameHint');
+
+    if (signedOutBlock) signedOutBlock.style.display = loggedIn ? 'none' : '';
+    if (signedInBlock) signedInBlock.style.display = loggedIn ? '' : 'none';
+
+    if (usernameField) {
+        if (loggedIn) {
+            usernameField.readOnly = true;
+            usernameField.oninput = null;
+            usernameField.placeholder = 'Not registered';
+            if (usernameHint) usernameHint.textContent = 'your Cypress identity username';
+        } else {
+            usernameField.readOnly = false;
+            usernameField.oninput = onProfileFieldChanged;
+            usernameField.placeholder = 'Enter your name';
+            if (usernameHint) usernameHint.textContent = 'your display name when joining servers';
+        }
+    }
+}
+
 function showAuthModal() {
     document.getElementById('authModalBackdrop').style.display = 'flex';
     document.getElementById('authStatus').textContent = '';
@@ -21,13 +48,15 @@ function startEaLogin() {
 }
 
 function handleAuthStatus(data) {
+    window._eaLoggedIn = !!data.loggedIn;
+    updateProfileIdentitySection();
     if (data.loggedIn) {
         hideAuthModal();
         if (data.uid) setAvatarImage(data.uid);
-        send('init', {});
     } else {
-        showAuthModal();
+        showAuthModal(); // dismissable
     }
+    send('init', {}); // load settings regardless of login state
 }
 
 function handleAuthLoginResult(data) {
@@ -35,6 +64,8 @@ function handleAuthLoginResult(data) {
     const status = document.getElementById('authStatus');
 
     if (data.ok) {
+        window._eaLoggedIn = true;
+        updateProfileIdentitySection();
         status.textContent = 'Logged in as ' + data.displayName;
         status.className = 'auth-status';
         if (data.uid) setAvatarImage(data.uid);
@@ -49,6 +80,8 @@ function handleAuthLoginResult(data) {
 
 function handleAuthLogoutResult(data) {
     if (data.ok) {
+        window._eaLoggedIn = false;
+        updateProfileIdentitySection();
         showAuthModal();
     }
 }
@@ -58,13 +91,12 @@ function handleAuthLogoutResult(data) {
 function handleIdentityStatus(data) {
     if (data.registered) {
         hideIdentityModal();
-        // update profile display
         const usernameField = document.getElementById('username');
         if (usernameField) usernameField.value = data.username || '';
         const nicknameField = document.getElementById('nicknameInput');
         if (nicknameField) nicknameField.value = data.nickname || '';
         if (typeof syncProfileDisplay === 'function') syncProfileDisplay();
-    } else {
+    } else if (window._eaLoggedIn) {
         showIdentityModal();
     }
 }
@@ -117,6 +149,7 @@ function handleRegisterResult(data) {
         if (usernameField) usernameField.value = data.username || '';
         const nicknameField = document.getElementById('nicknameInput');
         if (nicknameField) nicknameField.value = data.nickname || '';
+        updateProfileIdentitySection();
         if (typeof updateProfileWidget === 'function') updateProfileWidget();
     } else {
         btn.disabled = false;

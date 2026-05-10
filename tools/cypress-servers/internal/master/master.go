@@ -313,6 +313,19 @@ func truncStr(s string, max int) string {
 	return s
 }
 
+// accept only http/https URLs; returns "" for anything else.
+func sanitizeURL(s string, max int) string {
+	s = strings.TrimSpace(s)
+	if len(s) > max {
+		s = s[:max]
+	}
+	low := strings.ToLower(s)
+	if strings.HasPrefix(low, "http://") || strings.HasPrefix(low, "https://") {
+		return s
+	}
+	return ""
+}
+
 func getOrCreateSecret(path string) (string, error) {
 	data, err := os.ReadFile(path)
 	if err == nil {
@@ -609,7 +622,7 @@ func (s *masterState) handleHeartbeat(w http.ResponseWriter, r *http.Request) {
 		existing.Players = clampInt(getInt(data, "players", existing.Players), 0, existing.MaxPlayers)
 		existing.Motd = truncStr(getString(data, "motd"), 256)
 		existing.Modded = getBool(data, "modded")
-		existing.ModpackURL = truncStr(getString(data, "modpackUrl"), 512)
+		existing.ModpackURL = sanitizeURL(getString(data, "modpackUrl"), 512)
 		existing.Level = truncStr(getString(data, "level"), 128)
 		existing.Mode = truncStr(getString(data, "mode"), 128)
 		existing.RelayAddress = truncStr(getString(data, "relayAddress"), 256)
@@ -649,7 +662,7 @@ func (s *masterState) handleHeartbeat(w http.ResponseWriter, r *http.Request) {
 		Motd:          truncStr(getString(data, "motd"), 256),
 		Icon:          truncStr(getString(data, "icon"), iconMaxB64),
 		Modded:        getBool(data, "modded"),
-		ModpackURL:    truncStr(getString(data, "modpackUrl"), 512),
+		ModpackURL:    sanitizeURL(getString(data, "modpackUrl"), 512),
 		Level:         truncStr(getString(data, "level"), 128),
 		Mode:          truncStr(getString(data, "mode"), 128),
 		RelayAddress:  truncStr(getString(data, "relayAddress"), 256),
@@ -671,6 +684,10 @@ func (s *masterState) handleHeartbeat(w http.ResponseWriter, r *http.Request) {
 
 func (s *masterState) handleDeregister(w http.ResponseWriter, r *http.Request) {
 	ip := getRealIP(r, s.behindProxy)
+	if !s.rl.check(ip, "deregister", 10, 60*time.Second) {
+		errResp(w, 429, "Rate limited")
+		return
+	}
 	data, err := readJSON(r, maxBodySize)
 	if err != nil {
 		errResp(w, 400, "Invalid JSON")
@@ -837,6 +854,11 @@ func (s *masterState) handleModMe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *masterState) handleModVerify(w http.ResponseWriter, r *http.Request) {
+	ip := getRealIP(r, s.behindProxy)
+	if !s.rl.check(ip, "mod_verify", 30, 60*time.Second) {
+		errResp(w, 429, "Rate limited")
+		return
+	}
 	nonce := r.URL.Query().Get("nonce")
 	sig := r.URL.Query().Get("sig")
 	if nonce == "" || sig == "" {
@@ -1098,7 +1120,7 @@ func (s *masterState) handleBanCheck(w http.ResponseWriter, r *http.Request) {
 
 	// check component overlap
 	if len(components) > 0 {
-		rows, err := s.db.Query("SELECT components, reason FROM global_bans")
+		rows, err := s.db.Query("SELECT components, reason FROM global_bans WHERE components != '[]' LIMIT 10000")
 		if err == nil {
 			defer rows.Close()
 			componentSet := make(map[string]bool)

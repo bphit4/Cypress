@@ -95,6 +95,25 @@
     margin-bottom: 0;
 }
 
+.profile-signin-prompt {
+    padding: 16px;
+    background: rgba(var(--accent-rgb), 0.04);
+    border: 1px solid rgba(var(--accent-rgb), 0.10);
+    border-radius: var(--radius);
+    margin-bottom: 16px;
+    text-align: center;
+}
+.profile-signin-prompt p {
+    color: var(--text-secondary);
+    font-size: 0.85em;
+    margin: 0 0 12px;
+    line-height: 1.5;
+}
+.profile-signin-btn {
+    font-size: 0.88em;
+    padding: 0.55em 1.4em;
+}
+
 .fov-input {
     width: 80px;
     text-align: center;

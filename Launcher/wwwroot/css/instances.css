@@ -538,6 +538,39 @@
     gap: 6px;
     min-height: 0;
 }
+.player-list-columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+.player-team-column,
+.player-team-unknown {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+.player-team-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 2px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.player-team-count {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+.player-team-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
 .player-list-empty {
     display: flex;
     flex-direction: column;
@@ -571,6 +604,14 @@
     justify-content: center;
     color: var(--accent);
     flex-shrink: 0;
+    overflow: hidden;
+}
+.player-card-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 0;
+    display: block;
 }
 .player-card-info {
     flex: 1;
@@ -586,6 +627,9 @@
 .player-card-meta {
     font-size: 11px;
     color: var(--text-muted);
+}
+.player-card-meta-line + .player-card-meta-line {
+    margin-top: 2px;
 }
 .player-card-actions {
     display: flex;
@@ -758,6 +802,11 @@
     font-size: 12px;
     margin: 0 0 8px 0;
     line-height: 1.4;
+}
+@media (max-width: 900px) {
+    .player-list-columns {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* custom dialog (replaces native prompt/confirm/alert) */

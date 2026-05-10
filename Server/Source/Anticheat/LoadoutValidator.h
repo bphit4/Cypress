@@ -44,6 +44,7 @@ inline bool HasFlag(ValidationFlag flags, ValidationFlag flag) {
 struct WeaponSet
 {
     std::unordered_set<uint32_t> primary; //WeaponSlot_0
+    std::vector<std::string> primaryNames;
     std::unordered_set<uint32_t> ability1; //WeaponSlot_1
     std::unordered_set<uint32_t> ability2; //WeaponSlot_2
     std::unordered_set<uint32_t> ability3; //WeaponSlot_3
@@ -54,6 +55,12 @@ struct WeaponSet
     std::unordered_set<uint32_t> weaponSlot8; //WeaponSlot_8
     std::unordered_set<uint32_t> weaponSlot9; //WeaponSlot_9
     bool allowAlternate = false;
+
+    std::vector<std::string> allowedPrimaryPrefixes; // full asset path prefixes
+    std::vector<std::string> allowedSoldierSubstrings; // blueprint name must contain one of these
+    std::string requiredMode; // if non-empty, kit only valid in this game mode
+    bool skipAbilityValidation = false;
+    bool skipUpgradeValidation = false;
 };
 
 struct UpgradeSet
@@ -76,6 +83,8 @@ struct ValidationResult {
     std::vector<std::string> invalidUpgrades;
 
     std::string characterName;
+    std::string teamName;
+    std::string weaponName;
     std::string playerName;
     uint64_t personaId = 0;
     int teamId = -1;
@@ -95,6 +104,8 @@ public:
         return instance;
     }
     void init(); //build weapon and upgrade sets
+    void invalidate() { m_initialized = false; } // call on level change to force reinit on next player join
+    bool needsInit() const { return !m_initialized; }
 
     static ValidationResult validatePlayer(fb::ServerPlayer* player);
     static ValidationResult validateWeapons(fb::PVZCharacterServerPlayerExtent* extent, const WeaponSet& allowedWeapons, const char* playerName);
@@ -105,12 +116,16 @@ public:
     inline static std::unordered_map<uint32_t, UpgradeSet> upgradeSets;
     inline static std::vector<uint32_t> upgradableWeaponIds;
 
+    bool m_initialized = false;
+
     std::set<std::string> kitBlacklist
     {
         "Gameplay/Kits/Plant_LaserGoat_Green",
         "Gameplay/Kits/Zombie_LaserGoat_Purple",
         "Gameplay/Kits/Zombie_ZombossCat",
+        "Gameplay/Kits/Zombie_ZombossCat_CvD",
         "Gameplay/Kits/Plant_Junkasaurus",
+        "Gameplay/Kits/Plant_Junkasaurus_CvD",
         "Gameplay/Kits/Plant_ChomperDelivery"
     };
 };

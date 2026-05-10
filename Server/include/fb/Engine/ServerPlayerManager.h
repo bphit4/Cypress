@@ -118,7 +118,12 @@ namespace fb
             }
             return m_idToPlayerMap[id];
 #elif defined(CYPRESS_GW1)
-            //TODO
+            for (size_t i = 0; i < m_players.size(); i++)
+            {
+                ServerPlayer* p = m_players.at(i);
+                if (p && p->getPlayerId() == id)
+                    return p;
+            }
             return nullptr;
 #else
             if (id < 0 || id > 63)

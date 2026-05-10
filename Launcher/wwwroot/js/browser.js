@@ -285,7 +285,7 @@ function renderBrowserList(servers) {
         if (metaTags.length) html += ' &middot; ' + metaTags.join(' ');
         html += '</div>';
         if (s.modded && s.modpackUrl) {
-            html += '<a class="browser-entry-modpack" href="#" onclick="event.stopPropagation(); openModpackLink(\'' + escapeAttr(s.modpackUrl) + '\'); return false;">';
+            html += '<a class="server-entry-modpack" href="#" data-url="' + escapeHtml(s.modpackUrl) + '" onclick="event.stopPropagation(); openModpackLink(this.dataset.url); return false;" title="Download modpack">';
             html += '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
             html += ' Modpack';
             html += '</a>';

@@ -135,6 +135,8 @@ namespace Cypress
 		// identity verification
 		uint8_t m_masterPubKey[32] = {};
 		bool m_masterPubKeyLoaded = false;
+		bool m_requireIdentity = false; // only enforced when CYPRESS_REQUIRE_IDENTITY=1
+		bool m_allowGlobalMods = true;  // disabled when CYPRESS_ALLOW_GLOBAL_MODS=0
 		Cypress::Identity::BanList m_banList;
 		mutable std::mutex m_banListMutex;
 		std::atomic<bool> m_banListRunning{false};

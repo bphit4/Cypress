@@ -34,9 +34,23 @@ include(FetchContent)
 # Dependencies
 ### MinHook
 FetchContent_Declare(
-        minhook
-        GIT_REPOSITORY https://github.com/TsudaKageyu/minhook.git
-        GIT_TAG 1e9ad1eb42db11bfcb65461f687c656612d1b555
+  minhook
+  GIT_REPOSITORY https://github.com/TsudaKageyu/minhook.git
+  GIT_TAG 1e9ad1eb42db11bfcb65461f687c656612d1b555
+)
+
+### EABase
+FetchContent_Declare(
+  EABase
+  GIT_REPOSITORY https://github.com/kitsilanosoftware/EABase.git
+  GIT_TAG 53a97991c69c2f6394a8ff95057743daea6a1f3e
+)
+
+### json
+FetchContent_Declare(
+  nlohmann_json
+  GIT_REPOSITORY https://github.com/nlohmann/json.git
+  GIT_TAG 8167d2f64122c3ef7e5a0d9cab239fdba37aa54c
 )
 
 ### Monocypher
@@ -47,9 +61,14 @@ FetchContent_Declare(
 )
 
 FetchContent_MakeAvailable(
-        minhook
-        monocypher
+  minhook
+  EABase
+  nlohmann_json
+  monocypher
 )
+
+set(EASTL_LOCAL_DIR "${CMAKE_SOURCE_DIR}/vendor/EASTL")
+
 
 # Options for variants
 option(CYPRESS_GW1 "Build GW1 version" OFF)
@@ -72,20 +91,25 @@ add_library(Cypress SHARED ${SOURCES})
 
 # Explicitly compile monocypher
 target_sources(Cypress PRIVATE
-        ${monocypher_SOURCE_DIR}/src/monocypher.c
+    ${monocypher_SOURCE_DIR}/src/monocypher.c
+    ${EASTL_LOCAL_DIR}/source/assert.cpp
+    ${EASTL_LOCAL_DIR}/source/string.cpp
 )
 
 set_source_files_properties(
-        PROPERTIES SKIP_PRECOMPILE_HEADERS ON
+    ${EASTL_LOCAL_DIR}/source/assert.cpp
+    ${EASTL_LOCAL_DIR}/source/string.cpp
+    PROPERTIES SKIP_PRECOMPILE_HEADERS ON
 )
 
 # Includes
 target_include_directories(Cypress PRIVATE
-        ${CMAKE_SOURCE_DIR}
-        ${CMAKE_SOURCE_DIR}/include
-        ${CMAKE_SOURCE_DIR}/Source
-        ${CMAKE_SOURCE_DIR}/External/nlohmann/include
-        ${monocypher_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/Source
+    ${monocypher_SOURCE_DIR}/src
+    ${EASTL_LOCAL_DIR}/include
+    ${eabase_SOURCE_DIR}/include/Common
 )
 
 # Precompiled headers

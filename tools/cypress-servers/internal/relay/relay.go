@@ -77,13 +77,14 @@ func stripMotdTags(s string) string {
 
 // tunnel frame protocol: [1B cmd][4B client_id BE][4B data_len BE][data]
 const (
-	cmdOpen      = 1
-	cmdData      = 2
-	cmdClose     = 3
-	cmdUDP       = 4
-	cmdPing      = 5
-	cmdPong      = 6
-	frameHdrSize = 9 // 1 + 4 + 4
+	cmdOpen         = 1
+	cmdData         = 2
+	cmdClose        = 3
+	cmdUDP          = 4
+	cmdPing         = 5
+	cmdPong         = 6
+	frameHdrSize    = 9       // 1 + 4 + 4
+	maxFrameDataLen = 1 << 20 // 1mib
 )
 
 // stats
@@ -737,6 +738,10 @@ func readFrame(conn net.Conn, stats *relayStats) (cmd byte, clientID uint32, dat
 	cmd = hdr[0]
 	clientID = binary.BigEndian.Uint32(hdr[1:5])
 	dataLen := binary.BigEndian.Uint32(hdr[5:9])
+	if dataLen > maxFrameDataLen {
+		err = fmt.Errorf("frame too large: %d bytes", dataLen)
+		return
+	}
 	if dataLen > 0 {
 		data = make([]byte, dataLen)
 		if _, err = io.ReadFull(conn, data); err != nil {

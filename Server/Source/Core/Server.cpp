@@ -1,7 +1,11 @@
 #include "pch.h"
 #include "Psapi.h"
-#include "Cypress/Core/Server.h"
+#include "Server.h"
+#include <cstdlib>
+#include <cstring>
 #include <string>
+#include <array>
+#include <unordered_map>
 #include <format>
 #include <Cypress/Core/Program.h>
 #include <Cypress/Core/Settings.h>
@@ -15,6 +19,7 @@
 #include <fb/Engine/ServerGameContext.h>
 #include <fb/Engine/ServerConnection.h>
 #include <fb/Engine/ServerPlayer.h>
+#include <StringUtil.h>
 #ifdef CYPRESS_BFN
 #include <fb/Engine/Console.h>
 #else
@@ -22,6 +27,9 @@
 #include <fb/TypeInfo/SystemSettings.h>
 #include <fb/TypeInfo/GameSettings.h>
 #include <GameHooks/fbMainHooks.h>
+#ifdef CYPRESS_GW2
+#include <Anticheat/LoadoutValidator.h>
+#endif
 #endif
 
 namespace
@@ -33,6 +41,45 @@ namespace
 		const bool isProxied = proxyAddress != nullptr && proxyAddress[0] != '\0';
 		return Kyber::SocketSpawnInfo(isProxied, isProxied ? proxyAddress : "", isProxied && proxyKey != nullptr ? proxyKey : "");
 	}
+
+	std::string NormalizeTeamLabel(int teamId)
+	{
+		if (teamId == 2) return "plants";
+		if (teamId == 1) return "zombies";
+		return "unknown";
+	}
+
+	std::string CleanAssetName(const char* assetName)
+	{
+		if (!assetName || assetName[0] == '\0')
+			return "";
+
+		const char* slash = strrchr(assetName, '/');
+		return slash ? std::string(slash + 1) : std::string(assetName);
+	}
+
+#ifdef CYPRESS_BFN
+	bool IsRuntimeDataPointer(const void* ptr, size_t minSize = 1)
+	{
+		if (!ptr)
+			return false;
+
+		MEMORY_BASIC_INFORMATION mbi{};
+		if (VirtualQuery(ptr, &mbi, sizeof(mbi)) != sizeof(mbi))
+			return false;
+
+		if (mbi.State != MEM_COMMIT || (mbi.Protect & PAGE_GUARD) || (mbi.Protect & PAGE_NOACCESS))
+			return false;
+
+		if (mbi.Type == MEM_IMAGE)
+			return false;
+
+		const uintptr_t start = reinterpret_cast<uintptr_t>(ptr);
+		const uintptr_t regionEnd = reinterpret_cast<uintptr_t>(mbi.BaseAddress) + mbi.RegionSize;
+		return start + minSize <= regionEnd;
+	}
+
+#endif
 }
 
 using namespace fb;
@@ -75,6 +122,309 @@ static void ParseFirstArg(const std::string& input, std::string& first, std::str
 #if(HAS_DEDICATED_SERVER)
 namespace Cypress
 {
+	void Server::SetPlayerMetadata(const PlayerMetadata& metadata)
+	{
+		std::lock_guard<std::mutex> lock(m_playerMetadataMutex);
+		auto oldNameIt = m_playerNameById.find(metadata.playerId);
+		if (oldNameIt != m_playerNameById.end() && oldNameIt->second != metadata.playerName)
+			m_playerMetadataByName.erase(oldNameIt->second);
+
+		m_playerMetadataByName[metadata.playerName] = metadata;
+		m_playerNameById[metadata.playerId] = metadata.playerName;
+	}
+
+	void Server::ClearPlayerMetadata(const std::string& playerName, unsigned int playerId)
+	{
+		std::lock_guard<std::mutex> lock(m_playerMetadataMutex);
+		if (!playerName.empty())
+		{
+			m_playerMetadataByName.erase(playerName);
+		}
+
+		if (playerId != 0)
+		{
+			auto byIdIt = m_playerNameById.find(playerId);
+			if (byIdIt != m_playerNameById.end())
+			{
+				m_playerMetadataByName.erase(byIdIt->second);
+				m_playerNameById.erase(byIdIt);
+			}
+		}
+	}
+
+	bool Server::TryGetPlayerMetadata(const std::string& playerName, PlayerMetadata& out) const
+	{
+		std::lock_guard<std::mutex> lock(m_playerMetadataMutex);
+		auto it = m_playerMetadataByName.find(playerName);
+		if (it == m_playerMetadataByName.end())
+			return false;
+		out = it->second;
+		return true;
+	}
+
+	void Server::AppendPlayerMetadata(nlohmann::json& entry, const std::string& playerName, unsigned int playerId) const
+	{
+		PlayerMetadata metadata;
+		bool found = false;
+
+		{
+			std::lock_guard<std::mutex> lock(m_playerMetadataMutex);
+			auto it = m_playerMetadataByName.find(playerName);
+			if (it != m_playerMetadataByName.end())
+			{
+				metadata = it->second;
+				found = true;
+			}
+			else if (playerId != 0)
+			{
+				auto nameIt = m_playerNameById.find(playerId);
+				if (nameIt != m_playerNameById.end())
+				{
+					auto metaIt = m_playerMetadataByName.find(nameIt->second);
+					if (metaIt != m_playerMetadataByName.end())
+					{
+						metadata = metaIt->second;
+						found = true;
+					}
+				}
+			}
+		}
+
+		if (!found)
+			return;
+
+		entry["team"] = metadata.team.empty() ? NormalizeTeamLabel(metadata.teamId) : metadata.team;
+		entry["team_id"] = metadata.teamId;
+		entry["class_name"] = metadata.className;
+		entry["weapon_name"] = metadata.weaponName;
+		entry["updated_at"] = metadata.updatedAtMs;
+	}
+
+	void Server::TickPlayerMetadata()
+	{
+#ifdef CYPRESS_BFN
+		const uint64_t now = GetTickCount64();
+		if (m_lastPlayerMetadataPollMs != 0 && now - m_lastPlayerMetadataPollMs < 1000)
+			return;
+
+		m_lastPlayerMetadataPollMs = now;
+
+		fb::ServerGameContext* gameContext = fb::ServerGameContext::GetInstance();
+		if (!gameContext || !gameContext->m_serverPlayerManager)
+			return;
+
+		auto& players = gameContext->m_serverPlayerManager->m_players;
+		for (size_t i = 0; i < players.size(); i++)
+		{
+			fb::ServerPlayer* player = players.at(i);
+			if (!player || player->isAIPlayer() || !player->m_name || player->m_name[0] == '\0')
+				continue;
+
+			std::string playerName(player->m_name);
+
+			PlayerMetadata metadata;
+			if (!TryBuildBFNPlayerMetadata(player, metadata))
+				continue;
+
+			PlayerMetadata oldMetadata;
+			const bool hadOldMetadata = TryGetPlayerMetadata(metadata.playerName, oldMetadata);
+			const bool changed = !hadOldMetadata
+				|| oldMetadata.className != metadata.className
+				|| oldMetadata.teamId != metadata.teamId
+				|| oldMetadata.team != metadata.team;
+			if (!changed)
+				continue;
+
+			SetPlayerMetadata(metadata);
+			BroadcastPlayerMetadata(metadata);
+		}
+#elif defined(CYPRESS_GW1)
+		const uint64_t now = GetTickCount64();
+		if (m_lastPlayerMetadataPollMs != 0 && now - m_lastPlayerMetadataPollMs < 1000)
+			return;
+
+		m_lastPlayerMetadataPollMs = now;
+
+		fb::ServerGameContext* gameContext = fb::ServerGameContext::GetInstance();
+		if (!gameContext || !gameContext->m_serverPlayerManager)
+			return;
+
+		auto& players = gameContext->m_serverPlayerManager->m_players;
+
+		// a proper vehicle blueprint pointer in ServerPlayer would be cleaner, but this works great
+		bool zombieBossAssigned = false;
+		bool plantBossAssigned = false;
+
+		for (size_t i = 0; i < players.size(); i++)
+		{
+			fb::ServerPlayer* player = players.at(i);
+			if (!player || player->isAIPlayer() || !player->m_name || player->m_name[0] == '\0')
+				continue;
+
+			fb::Asset* kitAsset = player->getKitAsset();
+			fb::Asset* weaponAsset = player->getPrimaryWeaponAsset();
+
+			PlayerMetadata metadata;
+			metadata.playerId = player->getPlayerId();
+			metadata.playerName = player->m_name;
+			metadata.teamId = player->getTeamId();
+			metadata.team = NormalizeTeamLabel(metadata.teamId);
+			metadata.updatedAtMs = now;
+
+			const bool hasKit    = kitAsset && kitAsset->Name;
+			const bool hasWeapon = weaponAsset && weaponAsset->Name;
+
+			if (!hasKit && !hasWeapon)
+			{
+				// no kit or weapon: treat as boss if team is known and no boss claimed yet for that team
+				if (metadata.teamId == 1 && !zombieBossAssigned)
+				{
+					metadata.className = "ZombieBoss";
+					metadata.weaponName = "";
+					zombieBossAssigned = true;
+				}
+				else if (metadata.teamId == 2 && !plantBossAssigned)
+				{
+					metadata.className = "PlantBoss";
+					metadata.weaponName = "";
+					plantBossAssigned = true;
+				}
+				else
+				{
+					continue;
+				}
+			}
+			else if (hasKit && hasWeapon)
+			{
+				metadata.className = kitAsset->Name;
+				metadata.weaponName = weaponAsset->Name;
+			}
+			else
+			{
+				// kit present but no weapon: player is in character selection, show team only
+				metadata.className = "";
+				metadata.weaponName = "";
+			}
+
+			PlayerMetadata oldMetadata;
+			const bool hadOldMetadata = TryGetPlayerMetadata(metadata.playerName, oldMetadata);
+			const bool changed = !hadOldMetadata
+				|| oldMetadata.className != metadata.className
+				|| oldMetadata.weaponName != metadata.weaponName
+				|| oldMetadata.teamId != metadata.teamId
+				|| oldMetadata.team != metadata.team;
+			if (!changed)
+				continue;
+
+			SetPlayerMetadata(metadata);
+			BroadcastPlayerMetadata(metadata);
+		}
+#elif defined(CYPRESS_GW2)
+		const uint64_t now = GetTickCount64();
+		if (m_lastPlayerMetadataPollMs != 0 && now - m_lastPlayerMetadataPollMs < 1000)
+			return;
+
+		m_lastPlayerMetadataPollMs = now;
+
+		fb::ServerGameContext* gameContext = fb::ServerGameContext::GetInstance();
+		if (!gameContext || !gameContext->m_serverPlayerManager)
+			return;
+
+		auto& players = gameContext->m_serverPlayerManager->m_players;
+		for (size_t i = 0; i < players.size(); i++)
+		{
+			fb::ServerPlayer* player = players.at(i);
+			if (!player || player->isAIPlayer() || !player->m_name || player->m_name[0] == '\0')
+				continue;
+
+			ValidationResult result = LoadoutValidator::validatePlayer(player);
+
+			PlayerMetadata metadata;
+			metadata.playerId = player->getPlayerId();
+			metadata.playerName = result.playerName.empty() ? std::string(player->m_name) : result.playerName;
+			metadata.teamId = result.teamId;
+			metadata.team = result.teamName.empty() ? NormalizeTeamLabel(result.teamId) : result.teamName;
+			metadata.className = result.characterName;
+			metadata.weaponName = result.weaponName;
+			metadata.updatedAtMs = now;
+
+			if (metadata.className.empty() && metadata.weaponName.empty())
+				continue;
+
+			PlayerMetadata oldMetadata;
+			const bool hadOldMetadata = TryGetPlayerMetadata(metadata.playerName, oldMetadata);
+			const bool changed = !hadOldMetadata
+				|| oldMetadata.className != metadata.className
+				|| oldMetadata.weaponName != metadata.weaponName
+				|| oldMetadata.teamId != metadata.teamId
+				|| oldMetadata.team != metadata.team;
+			if (!changed)
+				continue;
+
+			SetPlayerMetadata(metadata);
+			BroadcastPlayerMetadata(metadata);
+		}
+#endif
+	}
+
+#ifdef CYPRESS_BFN
+	bool Server::TryBuildBFNPlayerMetadata(fb::ServerPlayer* player, PlayerMetadata& metadata) const
+	{
+		if (!player || !player->m_name || player->m_name[0] == '\0')
+			return false;
+
+		std::string className;
+		if (!TryGetBFNClassToken(player, className))
+			return false;
+
+		metadata.playerId = player->getPlayerId();
+		metadata.playerName = player->m_name;
+		metadata.teamId = player->getTeamId();
+		metadata.team = NormalizeTeamLabel(metadata.teamId);
+		metadata.className = className;
+		metadata.weaponName = "";
+		metadata.updatedAtMs = GetTickCount64();
+		return true;
+	}
+
+	bool Server::TryGetBFNClassToken(fb::ServerPlayer* player, std::string& outClassToken) const
+	{
+		if (!player || player->isAIPlayer())
+			return false;
+
+		const char* classPtr = player->getClassNamePtr();
+		if (!classPtr || !IsRuntimeDataPointer(classPtr, 4))
+			return false;
+
+		outClassToken = classPtr;
+		return !outClassToken.empty();
+	}
+#endif
+
+	void Server::BroadcastPlayerMetadata(const PlayerMetadata& metadata)
+	{
+		nlohmann::json playerState = {
+			{"type", "scPlayerState"},
+			{"id", metadata.playerId},
+			{"name", metadata.playerName},
+			{"team", metadata.team},
+			{"team_id", metadata.teamId},
+			{"class_name", metadata.className},
+			{"weapon_name", metadata.weaponName},
+			{"updated_at", metadata.updatedAtMs}
+		};
+
+		m_sideChannel.BroadcastToMods(playerState);
+		if (Cypress_IsEmbeddedMode())
+		{
+			nlohmann::json embeddedState = playerState;
+			embeddedState["t"] = embeddedState["type"];
+			embeddedState.erase("type");
+			Cypress_WriteRawStdout(embeddedState.dump() + "\n");
+		}
+	}
+
+
 #ifdef CYPRESS_BFN
 	WNDPROC editBoxWndProc;
 	LRESULT CALLBACK EditBoxWndProcProxy(HWND hWnd, uint32_t msg, uint32_t wParam, LPARAM lParam)
@@ -990,6 +1340,7 @@ namespace Cypress
 				if (p && !p->isAIPlayer())
 				{
 					nlohmann::json entry = {{"name", std::string(p->m_name)}, {"id", p->getPlayerId()}};
+					AppendPlayerMetadata(entry, p->m_name ? p->m_name : "", p->getPlayerId());
 					auto scPeer = m_sideChannel.FindPeerByName(p->m_name);
 					if (scPeer)
 					{

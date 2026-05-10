@@ -4,8 +4,10 @@
 #include <fb/SecureReason.h>
 #include <EASTL/string.h>
 
-#ifdef CYPRESS_GW2
+#if defined(CYPRESS_GW2) || defined(CYPRESS_GW1)
 #include "fb/TypeInfo/Asset.h"
+#endif
+#ifdef CYPRESS_GW2
 #include "ObjectExtentRegistration.h"
 #include "PVZCharacterServerPlayerExtent.h"
 #endif
@@ -98,11 +100,48 @@ namespace fb
         }
 #endif
 
+#ifdef CYPRESS_GW1
+        int getTeamId()
+        {
+            return ptrread<int>(this, 0xCBC);
+        }
+
+        // _pvz/Gameplay/Kits/Zombie_Swat, _pvz/Gameplay/Kits/Plant_PeaShooter, etc.
+        fb::Asset* getKitAsset()
+        {
+            return ptrread<fb::Asset*>(this, 0x238);
+        }
+
+        // _pvz/Weapons/Soldier/Primary/AssaultRifle/U_AssaultRifle1, etc.
+        fb::Asset* getPrimaryWeaponAsset()
+        {
+            return ptrread<fb::Asset*>(this, 0x1130);
+        }
+#endif
+
+#ifdef CYPRESS_BFN
+        int getTeamId()
+        {
+            return ptrread<int>(this, 0x058);
+        }
+
+        const char* getClassNamePtr()
+        {
+            return ptrread<const char*>(this, 0x0DB8);
+        }
+
+        void disconnect(fb::SecureReason reason, eastl::new_string* reasonText)
+        {
+            auto ServerPlayer__disconnect = reinterpret_cast<void (*)(void* inst, fb::SecureReason reason, eastl::new_string* reasonText)>(OFFSET_SERVERPLAYER_DISCONNECT);
+            ServerPlayer__disconnect(this, reason, reasonText);
+        }
+#else
         void disconnect(fb::SecureReason reason, const eastl::string& reasonText)
         {
             auto ServerPlayer__disconnect = reinterpret_cast<void (*)(void* inst, fb::SecureReason reason, const eastl::string & reasonText)>(OFFSET_SERVERPLAYER_DISCONNECT);
             ServerPlayer__disconnect(this, reason, reasonText);
         }
+#endif
 
 #ifndef CYPRESS_BFN
     private:

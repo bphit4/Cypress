@@ -43,6 +43,8 @@ tools/cypress-servers/signing_key.bin
 tools/cypress-servers/hwid_salt.bin
 tools/cypress-servers/build/
 
+Server/vendor/
+
 # C++ intermediates (Server/)
 Server/x64/
 Server/Cypress/

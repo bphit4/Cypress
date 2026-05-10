@@ -72,7 +72,7 @@ public partial class MessageHandler
 		bool failed = false;
 		if (GameRequiresPatchedExe(Path.Combine(m_gameDirectory, exeName), ref failed) && !failed)
 		{
-			if (!PatchManager.EnsurePatched(m_selectedGame, m_gameDirectory, exeName, GetServerDLLName(), SendStatus))
+			if (!PatchManager.EnsurePatched(m_selectedGame, m_gameDirectory, exeName, GetServerDLLPath(), SendStatus))
 				return;
 		}
 		if (failed) return;
@@ -141,7 +141,7 @@ public partial class MessageHandler
 		if (string.Equals(hostConnectionMode, "Relay", StringComparison.OrdinalIgnoreCase)
 			&& string.IsNullOrWhiteSpace(hostRelayAddress))
 		{
-			hostRelayAddress = "relay.v0e.dev:25200";
+			hostRelayAddress = LauncherConfig.DefaultRelayAddress;
 		}
 		string level = ((string?)msg["level"]) ?? "";
 		string inclusion = ((string?)msg["inclusion"]) ?? "";
@@ -164,7 +164,7 @@ public partial class MessageHandler
 			SendStatus("Game directory not set.", "error");
 			return;
 		}
-		if (!File.Exists(GetServerDLLName()))
+		if (!File.Exists(GetServerDLLPath()))
 		{
 			SendStatus("Server DLL not found. Verify that " + GetServerDLLName() + " is in the launcher's folder.", "error");
 			return;
@@ -201,7 +201,7 @@ public partial class MessageHandler
 		bool failed = false;
 		if (GameRequiresPatchedExe(Path.Combine(m_gameDirectory, exeName), ref failed) && !failed)
 		{
-			if (!PatchManager.EnsurePatched(m_selectedGame, m_gameDirectory, exeName, GetServerDLLName(), SendStatus))
+			if (!PatchManager.EnsurePatched(m_selectedGame, m_gameDirectory, exeName, GetServerDLLPath(), SendStatus))
 				return;
 		}
 		if (failed) return;
@@ -277,12 +277,16 @@ public partial class MessageHandler
 	{
 		try
 		{
-			File.Copy(GetServerDLLName(), Path.Combine(m_gameDirectory, s_destDLLName), overwrite: true);
+			File.Copy(GetServerDLLPath(), Path.Combine(m_gameDirectory, s_destDLLName), overwrite: true);
 			return true;
 		}
 		catch (IOException) when (File.Exists(Path.Combine(m_gameDirectory, s_destDLLName)))
 		{
-			return true; // already in use by another instance
+			if (PatchManager.SameFileContentsSafe(GetServerDLLPath(), Path.Combine(m_gameDirectory, s_destDLLName)))
+				return true; // already right, probably just loaded
+
+			SendStatus("failed to update dinput8.dll because the game is still using an older one.", "error");
+			return false;
 		}
 		catch (Exception ex)
 		{
@@ -329,6 +333,16 @@ public partial class MessageHandler
 			}
 		}
 		return 14638;
+	}
+
+	private static string SanitizeModpackUrl(string? url)
+	{
+		if (string.IsNullOrWhiteSpace(url)) return "";
+		url = url.Trim();
+		if (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+			url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+			return url;
+		return "";
 	}
 
 	private int FindFreeClientGamePort()
@@ -402,7 +416,9 @@ public partial class MessageHandler
 			CreateNoWindow = true
 		};
 		startInfo.Environment["CYPRESS_EMBEDDED"] = "1";
-		startInfo.Environment["CYPRESS_MASTER_URL"] = MASTER_SERVER_URL;
+		bool emancipated = (bool)(msg?["emancipated"] ?? false);
+		if (!emancipated)
+			startInfo.Environment["CYPRESS_MASTER_URL"] = MASTER_SERVER_URL;
 
 		int sideChannelPort = 14638;
 		if (isServer)
@@ -429,6 +445,17 @@ public partial class MessageHandler
 			// optional: block ID_ prefixed usernames
 			if ((bool)(msg?["blockIdNames"] ?? false))
 				startInfo.Environment["CYPRESS_BLOCK_ID_NAMES"] = "1";
+
+			if (!emancipated)
+			{
+				// require players to have a linked Cypress account (default: on)
+				if ((bool)(msg?["requireCypressAccount"] ?? true))
+					startInfo.Environment["CYPRESS_REQUIRE_IDENTITY"] = "1";
+
+				// allow global moderators to moderate this server (default: on)
+				if (!(bool)(msg?["allowGlobalMods"] ?? true))
+					startInfo.Environment["CYPRESS_ALLOW_GLOBAL_MODS"] = "0";
+			}
 
 			// unified banlist path (shared across all games)
 			startInfo.Environment["CYPRESS_BANLIST_PATH"] = GetUnifiedBanlistPath();
@@ -562,7 +589,7 @@ public partial class MessageHandler
 			string motd = ((string?)msg?["serverName"]) ?? "";
 			string icon = ((string?)msg?["serverIcon"]) ?? "";
 			bool modded = (bool)(msg?["useMods"] ?? false);
-			string modpackUrl = ((string?)msg?["modpackUrl"]) ?? "";
+			string modpackUrl = SanitizeModpackUrl((string?)msg?["modpackUrl"]);
 			if (!string.IsNullOrEmpty(motd)) instanceMsg["motd"] = motd;
 			if (!string.IsNullOrEmpty(icon)) instanceMsg["icon"] = icon;
 			instanceMsg["modded"] = modded;
@@ -586,7 +613,7 @@ public partial class MessageHandler
 			string serverName = ((string?)msg?["serverName"]) ?? "";
 			string serverIcon = ((string?)msg?["serverIcon"]) ?? "";
 			bool useMods = (bool)(msg?["useMods"] ?? false);
-			string modpackUrl = ((string?)msg?["modpackUrl"]) ?? "";
+			string modpackUrl = SanitizeModpackUrl((string?)msg?["modpackUrl"]);
 			if (!string.IsNullOrEmpty(serverName) || !string.IsNullOrEmpty(serverIcon) || useMods || !string.IsNullOrEmpty(modpackUrl))
 			{
 				var infoJson = new JObject();
@@ -653,7 +680,7 @@ public partial class MessageHandler
 					if (!string.IsNullOrEmpty(hbRelayCode)) heartbeatData["relayCode"] = hbRelayCode;
 				}
 
-bool listedInBrowser = (bool)(msg?["listedInBrowser"] ?? true);
+bool listedInBrowser = !emancipated && (bool)(msg?["listedInBrowser"] ?? true);
 				if (listedInBrowser)
 					StartHeartbeat(heartbeatData, launchedPid);
 			});

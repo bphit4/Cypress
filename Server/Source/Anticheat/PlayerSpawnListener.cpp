@@ -17,14 +17,45 @@ DEFINE_HOOK(
 	void* serverCharacterEntity
 )
 {
-    if (!g_program->GetServer()->GetAnticheat()->GetPreventInvalidLoadouts() || !g_program->GetServer()->GetAnticheat()->GetEnabled())
+    const bool anticheatEnabled = g_program->GetServer()->GetAnticheat()->GetEnabled();
+    const bool preventInvalidLoadouts = g_program->GetServer()->GetAnticheat()->GetPreventInvalidLoadouts();
+    if (!anticheatEnabled)
         return Orig_fb_PVZSpawnManager_spawnOnSpawnPoint(player, serverCharacterEntity);
 
     g_program->GetServer()->GetAnticheat()->AC_LogMessage(LogLevel::Info, "Player {} spawned", player->m_name);
 
     ValidationResult result = LoadoutValidator::validatePlayer(player);
 
-    if (!result.isValid)
+    Cypress::PlayerMetadata metadata;
+    metadata.playerId = player->getPlayerId();
+    metadata.playerName = result.playerName;
+    metadata.teamId = result.teamId;
+    metadata.team = result.teamName;
+    metadata.className = result.characterName;
+    metadata.weaponName = result.weaponName;
+    metadata.updatedAtMs = GetTickCount64();
+    g_program->GetServer()->SetPlayerMetadata(metadata);
+
+    nlohmann::json playerState = {
+        {"type", "scPlayerState"},
+        {"id", metadata.playerId},
+        {"name", metadata.playerName},
+        {"team", metadata.team},
+        {"team_id", metadata.teamId},
+        {"class_name", metadata.className},
+        {"weapon_name", metadata.weaponName},
+        {"updated_at", metadata.updatedAtMs}
+    };
+    g_program->GetServer()->GetSideChannel()->BroadcastToMods(playerState);
+    if (Cypress_IsEmbeddedMode())
+    {
+        nlohmann::json embeddedState = playerState;
+        embeddedState["t"] = embeddedState["type"];
+        embeddedState.erase("type");
+        Cypress_WriteRawStdout(embeddedState.dump() + "\n");
+    }
+
+    if (preventInvalidLoadouts && !result.isValid)
     {
         g_program->GetServer()->GetAnticheat()->AC_LogMessage(LogLevel::Info, "Player {} removed from lobby", player->m_name);
 

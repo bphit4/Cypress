@@ -82,6 +82,14 @@ function toggleVpnFields() {
     if (el) el.style.display = document.getElementById('hostVpnEnabled').checked ? '' : 'none';
 }
 
+function onEmancipationToggled() {
+    const on = document.getElementById('emancipated').checked;
+    const group = document.getElementById('centralizedFeaturesGroup');
+    if (!group) return;
+    group.style.opacity = on ? '0.35' : '';
+    group.style.pointerEvents = on ? 'none' : '';
+}
+
 function startServer() {
     if (_launchPending) return;
     _launchPending = true;
@@ -128,7 +136,10 @@ function doStartServer() {
         serverName: getMotdRaw(),
         serverIcon: document.getElementById('serverIconData').value,
         listedInBrowser: document.getElementById('listedInBrowser').checked,
+        emancipated: document.getElementById('emancipated').checked,
         blockIdNames: document.getElementById('blockIdNames').checked,
+        requireCypressAccount: document.getElementById('requireCypressAccount').checked,
+        allowGlobalMods: document.getElementById('allowGlobalMods').checked,
         modpackUrl: document.getElementById('modpackUrl').value,
         vpnType: document.getElementById('hostVpnEnabled').checked ? document.getElementById('hostVpnType').value : '',
         vpnNetwork: document.getElementById('hostVpnEnabled').checked ? document.getElementById('hostVpnNetwork').value : '',

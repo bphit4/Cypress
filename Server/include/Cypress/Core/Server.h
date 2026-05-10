@@ -6,6 +6,8 @@
 #include <SideChannel.h>
 #include <HWID.h>
 #include <unordered_map>
+#include <mutex>
+#include <cstdint>
 
 #ifdef CYPRESS_BFN
 #include <Core/Console/ConsoleFunctions.h>
@@ -19,9 +21,25 @@
 #include "Anticheat/Anticheat.h"
 #endif
 
+namespace fb
+{
+	class ServerPlayer;
+}
+
 #if(HAS_DEDICATED_SERVER)
 namespace Cypress
 {
+	struct PlayerMetadata
+	{
+		unsigned int playerId = 0;
+		std::string playerName;
+		int teamId = -1;
+		std::string team = "unknown";
+		std::string className;
+		std::string weaponName;
+		uint64_t updatedAtMs = 0;
+	};
+
 	class Server
 	{
 	public:
@@ -88,6 +106,11 @@ namespace Cypress
 		SideChannelServer* GetSideChannel() { return &m_sideChannel; }
 		SideChannelTunnel* GetSideChannelTunnel() { return &m_sideChannelTunnel; }
 		std::unordered_map<std::string, std::pair<std::string, Cypress::HardwareFingerprint>>& GetPlayerHwCache() { return m_playerHwCache; }
+		void SetPlayerMetadata(const PlayerMetadata& metadata);
+		void ClearPlayerMetadata(const std::string& playerName, unsigned int playerId = 0);
+		bool TryGetPlayerMetadata(const std::string& playerName, PlayerMetadata& out) const;
+		void AppendPlayerMetadata(nlohmann::json& entry, const std::string& playerName, unsigned int playerId = 0) const;
+		void TickPlayerMetadata();
 		void StartSideChannel();
 		void StopSideChannel();
 		void RegisterSideChannelHandlers();
@@ -152,6 +175,15 @@ namespace Cypress
 
 		// hw cache: persists after player disconnects so we can ban by name offline
 		std::unordered_map<std::string, std::pair<std::string, Cypress::HardwareFingerprint>> m_playerHwCache; // name -> {hwid, fingerprint}
+		mutable std::mutex m_playerMetadataMutex;
+		std::unordered_map<std::string, PlayerMetadata> m_playerMetadataByName;
+		std::unordered_map<unsigned int, std::string> m_playerNameById;
+		uint64_t m_lastPlayerMetadataPollMs = 0;
+		void BroadcastPlayerMetadata(const PlayerMetadata& metadata);
+#ifdef CYPRESS_BFN
+		bool TryBuildBFNPlayerMetadata(fb::ServerPlayer* player, PlayerMetadata& metadata) const;
+		bool TryGetBFNClassToken(fb::ServerPlayer* player, std::string& outClassToken) const;
+#endif
 
 		friend class Program;
 	};

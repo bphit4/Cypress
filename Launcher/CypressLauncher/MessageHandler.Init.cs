@@ -61,7 +61,7 @@ public partial class MessageHandler
 
 	private void OnGetCharIcon(string key)
 	{
-		string? b64 = GetAssetIconPng(key, 128);
+		string? b64 = GetAssetIconAspectPng(key, 64);
 		Send(new JObject { ["type"] = "charIcon", ["key"] = key, ["data"] = b64 ?? "" });
 	}
 
@@ -82,6 +82,19 @@ public partial class MessageHandler
 			return null;
 
 		try { return Convert.ToBase64String(File.ReadAllBytes(jpgPath)); }
+		catch { return null; }
+	}
+
+	// resizes preserving aspect ratio
+	private string? GetAssetIconAspectPng(string key, int maxHeight)
+	{
+		if (string.IsNullOrEmpty(key) || key.Contains(".."))
+			return null;
+
+		string safePath = key.Replace('/', Path.DirectorySeparatorChar);
+		string iconPath = Path.Combine(AppContext.BaseDirectory, "assets", safePath + ".png");
+		if (!File.Exists(iconPath)) return null;
+		try { return ImageHelper.ResizeByHeightToPngBase64(iconPath, maxHeight); }
 		catch { return null; }
 	}
 

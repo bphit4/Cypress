@@ -10,6 +10,7 @@
 }
 
 .auth-modal {
+    position: relative;
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
@@ -18,6 +19,25 @@
     width: 90%;
     text-align: center;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.auth-modal-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 4px 6px;
+    border-radius: var(--radius-sm);
+    transition: color var(--transition), background var(--transition);
+}
+.auth-modal-close:hover {
+    color: var(--text-primary);
+    background: rgba(var(--accent-rgb), 0.08);
 }
 
 .auth-modal-logo {

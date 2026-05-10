@@ -485,6 +485,18 @@ public static class PatchManager
 		}
 	}
 
+	internal static bool SameFileContentsSafe(string leftPath, string rightPath)
+	{
+		try
+		{
+			return SameFileContents(leftPath, rightPath);
+		}
+		catch
+		{
+			return false;
+		}
+	}
+
 	private static bool SameFileContents(string leftPath, string rightPath)
 	{
 		var leftInfo = new FileInfo(leftPath);

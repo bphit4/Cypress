@@ -737,6 +737,11 @@ func (s *masterState) handleAuthPubkey(w http.ResponseWriter, r *http.Request) {
 
 // GET /auth/banlist, account + hwid + ea_pid ban lists for game servers
 func (s *masterState) handleAuthBanlist(w http.ResponseWriter, r *http.Request) {
+	ip := getRealIP(r, s.behindProxy)
+	if !s.rl.check(ip, "banlist", 6, 60*time.Second) {
+		errResp(w, 429, "Rate limited")
+		return
+	}
 	bannedAccountSet := make(map[string]bool)
 	bannedHWIDSet := make(map[string]bool)
 	bannedEaPidSet := make(map[string]bool)
@@ -874,6 +879,11 @@ func (s *masterState) handleUnbanAccount(w http.ResponseWriter, r *http.Request)
 
 // POST /auth/set-nickname, set or clear nickname (requires valid identity jwt + challenge sig)
 func (s *masterState) handleSetNickname(w http.ResponseWriter, r *http.Request) {
+	ip := getRealIP(r, s.behindProxy)
+	if !s.rl.check(ip, "set_nickname", 10, 60*time.Second) {
+		errResp(w, 429, "Rate limited")
+		return
+	}
 	data, err := readJSON(r, maxBodySize)
 	if err != nil {
 		errResp(w, 400, "Invalid JSON")

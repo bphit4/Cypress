@@ -198,6 +198,8 @@ function onInstanceOutput(pid, line) {
         // handle player events
         if (parsed.t === 'playerJoin') {
             inst.players[parsed.id] = { name: parsed.name, joinTime: parsed.ts || Date.now() };
+            if (inst.sideChannelPeers && inst.sideChannelPeers[parsed.name])
+                applyPlayerMetadata(inst, parsed.name, inst.sideChannelPeers[parsed.name], parsed.id);
             if (!inst.playerHistory) inst.playerHistory = [];
             inst.playerHistory.push({ event: 'join', name: parsed.name, ts: parsed.ts || Date.now() });
             if (inst.playerHistory.length > 500) inst.playerHistory.shift();
@@ -228,6 +230,7 @@ function onInstanceOutput(pid, line) {
             const displayName = parsed.display_name || parsed.name;
             const accountId = parsed.account_id || '';
             inst.sideChannelPeers[parsed.name] = { name: parsed.name, displayName: displayName, accountId: accountId, isMod: role === 'mod', connected: true, authTime: parsed.ts || Date.now() };
+            applyPlayerMetadata(inst, parsed.name, parsed, parsed.id);
             if (!inst.peerArchive) inst.peerArchive = {};
             inst.peerArchive[parsed.name] = Object.assign(inst.peerArchive[parsed.name] || {}, inst.sideChannelPeers[parsed.name]);
             if (selectedInstancePid === pid) updatePlayerList();
@@ -271,6 +274,7 @@ function onInstanceOutput(pid, line) {
             inst.scPlayers = {};
             players.forEach(p => {
                 inst.scPlayers[p.name] = { name: p.name, displayName: p.display_name || p.name };
+                applyPlayerMetadata(inst, p.name, p, p.id);
                 if (p.ea_pid || p.components || p.account_id) {
                     if (!inst.sideChannelPeers) inst.sideChannelPeers = {};
                     inst.sideChannelPeers[p.name] = {
@@ -300,6 +304,7 @@ function onInstanceOutput(pid, line) {
                 username: parsed.username || '', nickname: parsed.nickname || '',
                 connected: true
             };
+            applyPlayerMetadata(inst, parsed.name, parsed, parsed.id);
             if (!inst.peerArchive) inst.peerArchive = {};
             inst.peerArchive[parsed.name] = Object.assign(inst.peerArchive[parsed.name] || {}, inst.sideChannelPeers[parsed.name]);
             if (parsed.components && parsed.components.length) {
@@ -310,9 +315,18 @@ function onInstanceOutput(pid, line) {
             if (selectedInstancePid === pid) updateModeratorTab();
             return;
         }
+        if (parsed.t === 'scPlayerState') {
+            applyPlayerMetadata(inst, parsed.name, parsed, parsed.id);
+            if (selectedInstancePid === pid) {
+                updatePlayerList();
+                updateModeratorTab();
+            }
+            return;
+        }
         if (parsed.t === 'scPlayerJoin') {
             if (!inst.scPlayers) inst.scPlayers = {};
             inst.scPlayers[parsed.name] = { name: parsed.name, id: parsed.id };
+            applyPlayerMetadata(inst, parsed.name, parsed, parsed.id);
             if (!inst.playerHistory) inst.playerHistory = [];
             inst.playerHistory.push({ event: 'join', name: parsed.name, ts: Date.now() });
             if (inst.playerHistory.length > 500) inst.playerHistory.shift();
@@ -914,12 +928,184 @@ function hideAutocomplete() {
 
 // player list
 
+function normalizePlayerTeam(team, teamId) {
+    const value = (team || '').toString().toLowerCase();
+    if (value === 'plants' || teamId === 2) return 'plants';
+    if (value === 'zombies' || teamId === 1) return 'zombies';
+    return 'unknown';
+}
+
+function mergePlayerMetadata(target, source) {
+    if (!target || !source) return;
+    if (source.team !== undefined || source.team_id !== undefined || source.teamId !== undefined) {
+        const nextTeamId = source.team_id !== undefined ? source.team_id : source.teamId;
+        target.teamId = nextTeamId !== undefined ? nextTeamId : (target.teamId !== undefined ? target.teamId : -1);
+        target.team = normalizePlayerTeam(source.team, target.teamId);
+    }
+    if (source.class_name !== undefined) target.className = source.class_name || '';
+    if (source.className !== undefined) target.className = source.className || '';
+    if (source.weapon_name !== undefined) target.weaponName = source.weapon_name || '';
+    if (source.weaponName !== undefined) target.weaponName = source.weaponName || '';
+    if (source.updated_at !== undefined) target.updatedAt = source.updated_at;
+    if (source.updatedAt !== undefined) target.updatedAt = source.updatedAt;
+}
+
+function applyPlayerMetadata(inst, playerName, source, playerId) {
+    if (!inst || !source) return;
+
+    if (playerName) {
+        if (!inst.sideChannelPeers) inst.sideChannelPeers = {};
+        if (!inst.sideChannelPeers[playerName]) inst.sideChannelPeers[playerName] = { name: playerName };
+        mergePlayerMetadata(inst.sideChannelPeers[playerName], source);
+
+        if (inst.peerArchive && inst.peerArchive[playerName])
+            mergePlayerMetadata(inst.peerArchive[playerName], source);
+
+        if (inst.scPlayers && inst.scPlayers[playerName])
+            mergePlayerMetadata(inst.scPlayers[playerName], source);
+    }
+
+    if (!inst.players) return;
+
+    if (playerId !== undefined && playerId !== null && inst.players[playerId]) {
+        mergePlayerMetadata(inst.players[playerId], source);
+        return;
+    }
+
+    Object.keys(inst.players).forEach(function(id) {
+        const player = inst.players[id];
+        if (player && player.name === playerName)
+            mergePlayerMetadata(player, source);
+    });
+}
+
+function buildPlayerMetadataText(player, scPeer, game) {
+    const className = player.className || (scPeer && scPeer.className) || '';
+    const weaponName = player.weaponName || (scPeer && scPeer.weaponName) || '';
+
+    if (game === 'GW1') {
+        var label = (typeof getPlayerVariantLabel === 'function')
+            ? getPlayerVariantLabel('GW1', className, weaponName)
+            : null;
+        return label || '';
+    }
+
+    if (game === 'GW2') {
+        var label = (typeof getPlayerVariantLabel === 'function')
+            ? getPlayerVariantLabel('GW2', className, weaponName)
+            : null;
+        return label || className || '';
+    }
+
+    if (game === 'BFN') {
+        var isKnownClass = (typeof BFN_CLASS_ICON !== 'undefined') && !!BFN_CLASS_ICON[className];
+        return isKnownClass ? '' : (className || '');
+    }
+
+    const team = normalizePlayerTeam(player.team || (scPeer && scPeer.team), player.teamId !== undefined ? player.teamId : (scPeer ? scPeer.teamId : undefined));
+    return team + ' \u00b7 class: ' + (className || '?') + ' \u00b7 weapon: ' + (weaponName || '?');
+}
+
+function createPlayerCard(inst, id, player) {
+    const scPeers = inst.sideChannelPeers || {};
+    const scPeer = scPeers[player.name];
+    const joinTime = new Date(player.joinTime);
+    const timeStr = String(joinTime.getHours()).padStart(2, '0') + ':' +
+        String(joinTime.getMinutes()).padStart(2, '0') + ':' +
+        String(joinTime.getSeconds()).padStart(2, '0');
+
+    const isMod = scPeer && scPeer.isMod;
+    const hasAccount = scPeer && scPeer.accountId;
+    const eaPid = scPeer && scPeer.eaPid ? scPeer.eaPid : '';
+    const modBadge = isMod ? ' <span class="mod-badge">MOD</span>' : '';
+    const metadataText = buildPlayerMetadataText(player, scPeer, inst ? inst.game : undefined);
+
+    let modBtn = '';
+    if (hasAccount) {
+        const safeName = escapeHtml(player.name).replace(/'/g, "\\'");
+        if (isMod) {
+            modBtn = '<button class="icon-btn icon-btn-small icon-btn-warning" onclick="demotePlayer(\'' + safeName + '\')" title="Remove Moderator">' +
+                '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>' +
+            '</button>';
+        } else {
+            modBtn = '<button class="icon-btn icon-btn-small" onclick="promotePlayer(\'' + safeName + '\')" title="Make Moderator">' +
+                '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>' +
+            '</button>';
+        }
+    }
+
+    let copyPidBtn = '';
+    if (eaPid) {
+        copyPidBtn = '<button class="icon-btn icon-btn-small" onclick="navigator.clipboard.writeText(\'' + escapeAttr(eaPid) + '\')" title="Copy PID: ' + escapeAttr(eaPid) + '">' +
+            '<svg fill="currentColor" width="14" height="14" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="m16.635 6.162-5.928 9.377H4.24l1.508-2.3h4.024l1.474-2.335H2.264L.79 13.239h2.156L0 17.84h12.072l4.563-7.259 1.652 2.66h-1.401l-1.473 2.299h4.347l1.473 2.3H24zm-11.461.107L3.7 8.604l9.52-.035 1.474-2.3z"/></svg>' +
+        '</button>';
+    }
+
+    let copyHwidBtn = '';
+    if (typeof modLoggedIn !== 'undefined' && modLoggedIn && inst.knownComponents && inst.knownComponents[player.name] && inst.knownComponents[player.name].size) {
+        const comps = JSON.stringify(Array.from(inst.knownComponents[player.name]));
+        copyHwidBtn = '<button class="icon-btn icon-btn-small" onclick="navigator.clipboard.writeText(\'' + escapeAttr(comps) + '\')" title="Copy HWID Components">' +
+            '<svg fill="currentColor" width="12" height="12" viewBox="0 0 293 293" xmlns="http://www.w3.org/2000/svg"><path d="M271.5,25c0-13.807-11.193-25-25-25h-200c-13.807,0-25,11.193-25,25v243c0,13.807,11.193,25,25,25h200c13.807,0,25-11.193,25-25V25z M53.011,20.816c8.951,0,16.208,7.257,16.208,16.208s-7.257,16.208-16.208,16.208c-8.952,0-16.208-7.257-16.208-16.208S44.059,20.816,53.011,20.816z M53.011,278.496c-8.952,0-16.208-7.257-16.208-16.208c0-8.951,7.257-16.208,16.208-16.208c8.951,0,16.208,7.257,16.208,16.208C69.219,271.239,61.963,278.496,53.011,278.496z M163.624,193.807l3.574-30.99c0.266-2.298-0.328-4.393-1.672-5.899c-2.088-2.344-5.626-2.813-8.777-1.035l-49.005,27.652c-22.588-13.885-37.656-38.818-37.656-67.276c0-43.587,35.334-78.922,78.922-78.922s78.922,35.335,78.922,78.922C227.931,154.85,200.225,186.951,163.624,193.807z M240.655,278.496c-8.952,0-16.208-7.257-16.208-16.208c0-8.951,7.257-16.208,16.208-16.208s16.208,7.257,16.208,16.208C256.864,271.239,249.607,278.496,240.655,278.496z M240.655,53.232c-8.952,0-16.208-7.257-16.208-16.208s7.257-16.208,16.208-16.208s16.208,7.257,16.208,16.208S249.607,53.232,240.655,53.232z"/><circle cx="149.01" cy="116.258" r="28.452"/></svg>' +
+        '</button>';
+    }
+
+    let freecamBtn = '';
+    if (inst.isServer && supportsFreecam(inst.game)) {
+        const safeName = escapeHtml(player.name).replace(/'/g, "\\'");
+        freecamBtn = '<button class="icon-btn icon-btn-small icon-btn-primary" onclick="srvFreecamPlayer(\'' + safeName + '\')" title="Toggle Freecam">' +
+            '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>' +
+        '</button>';
+    }
+
+    const card = document.createElement('div');
+    card.className = 'player-card';
+    card.dataset.playerId = id;
+    var _playerIconKey = (inst && typeof getPlayerCharIconKey === 'function')
+        ? getPlayerCharIconKey(inst.game, player.className || '', player.weaponName || '')
+        : null;
+    var _playerAvatarInner = _playerIconKey && typeof charIconImg === 'function'
+        ? charIconImg(_playerIconKey)
+        : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+    card.innerHTML =
+        '<div class="player-card-avatar">' + _playerAvatarInner + '</div>' +
+        '<div class="player-card-info">' +
+            '<div class="player-card-name">' + escapeHtml(player.name) + modBadge + '</div>' +
+            '<div class="player-card-meta player-card-meta-line">ID: ' + id + ' &middot; Joined ' + timeStr + '</div>' +
+            '<div class="player-card-meta player-card-meta-line">' + escapeHtml(metadataText) + '</div>' +
+        '</div>' +
+        '<div class="player-card-actions">' +
+            copyPidBtn +
+            copyHwidBtn +
+            modBtn +
+            freecamBtn +
+            '<button class="icon-btn icon-btn-small" onclick="kickPlayer(' + id + ')" title="Kick">' +
+                '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>' +
+            '</button>' +
+            '<button class="icon-btn icon-btn-small icon-btn-danger" onclick="banPlayer(' + id + ')" title="Ban">' +
+                '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>' +
+            '</button>' +
+            (hasAccount && typeof modLoggedIn !== 'undefined' && modLoggedIn ?
+            '<button class="icon-btn icon-btn-small icon-btn-danger" onclick="globalBanPlayer(\'' + escapeHtml(player.name).replace(/'/g, "\\'") + '\')" title="Global Ban (GCBDB)" style="background:var(--danger,#e53935);color:#fff;">' +
+                '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>' +
+            '</button>' : '') +
+        '</div>';
+    return card;
+}
+
 function updatePlayerList() {
     const inst = instances[selectedInstancePid];
     const listEl = document.getElementById('playerList');
     const emptyEl = document.getElementById('playerListEmpty');
+    const columnsEl = document.getElementById('playerListColumns');
+    const plantsListEl = document.getElementById('plantsPlayerList');
+    const zombiesListEl = document.getElementById('zombiesPlayerList');
+    const unknownSectionEl = document.getElementById('unknownPlayerSection');
+    const unknownListEl = document.getElementById('unknownPlayerList');
     const countEl = document.getElementById('playerListCount');
     const badgeEl = document.getElementById('playerCountBadge');
+    const plantsCountEl = document.getElementById('plantsPlayerCount');
+    const zombiesCountEl = document.getElementById('zombiesPlayerCount');
+    const unknownCountEl = document.getElementById('unknownPlayerCount');
 
     if (!inst || !inst.isServer) return;
 
@@ -942,107 +1128,44 @@ function updatePlayerList() {
 
     if (count === 0) {
         emptyEl.style.display = 'flex';
-        listEl.querySelectorAll('.player-card').forEach(c => c.remove());
+        columnsEl.style.display = 'none';
+        unknownSectionEl.style.display = 'none';
+        plantsListEl.innerHTML = '';
+        zombiesListEl.innerHTML = '';
+        unknownListEl.innerHTML = '';
         return;
     }
     emptyEl.style.display = 'none';
+    columnsEl.style.display = 'grid';
+    plantsListEl.innerHTML = '';
+    zombiesListEl.innerHTML = '';
+    unknownListEl.innerHTML = '';
 
-    // remove stale cards
-    listEl.querySelectorAll('.player-card').forEach(card => {
-        if (!inst.players[card.dataset.playerId]) card.remove();
-    });
-
-    // check side-channel peers for mod status
-    const scPeers = inst.sideChannelPeers || {};
+    let plantsCount = 0;
+    let zombiesCount = 0;
+    let unknownCount = 0;
 
     playerIds.forEach(id => {
         const player = inst.players[id];
-        let card = listEl.querySelector('.player-card[data-player-id="' + id + '"]');
-        if (!card) {
-            card = document.createElement('div');
-            card.className = 'player-card';
-            card.dataset.playerId = id;
-            listEl.appendChild(card);
+        const team = normalizePlayerTeam(player.team, player.teamId);
+        const card = createPlayerCard(inst, id, player);
+
+        if (team === 'plants') {
+            plantsListEl.appendChild(card);
+            plantsCount++;
+        } else if (team === 'zombies') {
+            zombiesListEl.appendChild(card);
+            zombiesCount++;
+        } else {
+            unknownListEl.appendChild(card);
+            unknownCount++;
         }
-
-        const joinTime = new Date(player.joinTime);
-        const timeStr = String(joinTime.getHours()).padStart(2, '0') + ':' +
-            String(joinTime.getMinutes()).padStart(2, '0') + ':' +
-            String(joinTime.getSeconds()).padStart(2, '0');
-
-        // check if this player is a moderator via side-channel
-        const scPeer = scPeers[player.name];
-        const isMod = scPeer && scPeer.isMod;
-        const hasAccount = scPeer && scPeer.accountId;
-        const eaPid = scPeer && scPeer.eaPid ? scPeer.eaPid : '';
-        const modBadge = isMod ? ' <span class="mod-badge">MOD</span>' : '';
-
-        // mod promote/demote button (only if they have a side-channel connection with account id)
-        let modBtn = '';
-        if (hasAccount) {
-            const safeName = escapeHtml(player.name).replace(/'/g, "\\'");
-            if (isMod) {
-                modBtn = '<button class="icon-btn icon-btn-small icon-btn-warning" onclick="demotePlayer(\'' + safeName + '\')" title="Remove Moderator">' +
-                    '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>' +
-                '</button>';
-            } else {
-                modBtn = '<button class="icon-btn icon-btn-small" onclick="promotePlayer(\'' + safeName + '\')" title="Make Moderator">' +
-                    '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>' +
-                '</button>';
-            }
-        }
-
-        // copy pid button
-        let copyPidBtn = '';
-        if (eaPid) {
-            copyPidBtn = '<button class="icon-btn icon-btn-small" onclick="navigator.clipboard.writeText(\'' + escapeAttr(eaPid) + '\')" title="Copy PID: ' + escapeAttr(eaPid) + '">' +
-                '<svg fill="currentColor" width="14" height="14" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="m16.635 6.162-5.928 9.377H4.24l1.508-2.3h4.024l1.474-2.335H2.264L.79 13.239h2.156L0 17.84h12.072l4.563-7.259 1.652 2.66h-1.401l-1.473 2.299h4.347l1.473 2.3H24zm-11.461.107L3.7 8.604l9.52-.035 1.474-2.3z"/></svg>' +
-            '</button>';
-        }
-
-        // copy hwid components button (global mods only)
-        let copyHwidBtn = '';
-        if (typeof modLoggedIn !== 'undefined' && modLoggedIn && inst.knownComponents && inst.knownComponents[player.name] && inst.knownComponents[player.name].size) {
-            const comps = JSON.stringify(Array.from(inst.knownComponents[player.name]));
-            copyHwidBtn = '<button class="icon-btn icon-btn-small" onclick="navigator.clipboard.writeText(\'' + escapeAttr(comps) + '\')" title="Copy HWID Components">' +
-                '<svg fill="currentColor" width="12" height="12" viewBox="0 0 293 293" xmlns="http://www.w3.org/2000/svg"><path d="M271.5,25c0-13.807-11.193-25-25-25h-200c-13.807,0-25,11.193-25,25v243c0,13.807,11.193,25,25,25h200c13.807,0,25-11.193,25-25V25z M53.011,20.816c8.951,0,16.208,7.257,16.208,16.208s-7.257,16.208-16.208,16.208c-8.952,0-16.208-7.257-16.208-16.208S44.059,20.816,53.011,20.816z M53.011,278.496c-8.952,0-16.208-7.257-16.208-16.208c0-8.951,7.257-16.208,16.208-16.208c8.951,0,16.208,7.257,16.208,16.208C69.219,271.239,61.963,278.496,53.011,278.496z M163.624,193.807l3.574-30.99c0.266-2.298-0.328-4.393-1.672-5.899c-2.088-2.344-5.626-2.813-8.777-1.035l-49.005,27.652c-22.588-13.885-37.656-38.818-37.656-67.276c0-43.587,35.334-78.922,78.922-78.922s78.922,35.335,78.922,78.922C227.931,154.85,200.225,186.951,163.624,193.807z M240.655,278.496c-8.952,0-16.208-7.257-16.208-16.208c0-8.951,7.257-16.208,16.208-16.208s16.208,7.257,16.208,16.208C256.864,271.239,249.607,278.496,240.655,278.496z M240.655,53.232c-8.952,0-16.208-7.257-16.208-16.208s7.257-16.208,16.208-16.208s16.208,7.257,16.208,16.208S249.607,53.232,240.655,53.232z"/><circle cx="149.01" cy="116.258" r="28.452"/></svg>' +
-            '</button>';
-        }
-
-        // freecam button
-        let freecamBtn = '';
-        if (inst.isServer && supportsFreecam(inst.game)) {
-            const safeName = escapeHtml(player.name).replace(/'/g, "\\'");
-            freecamBtn = '<button class="icon-btn icon-btn-small icon-btn-primary" onclick="srvFreecamPlayer(\'' + safeName + '\')" title="Toggle Freecam">' +
-                '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>' +
-            '</button>';
-        }
-
-        card.innerHTML =
-            '<div class="player-card-avatar">' +
-                '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>' +
-            '</div>' +
-            '<div class="player-card-info">' +
-                '<div class="player-card-name">' + escapeHtml(player.name) + modBadge + '</div>' +
-                '<div class="player-card-meta">ID: ' + id + ' &middot; Joined ' + timeStr + '</div>' +
-            '</div>' +
-            '<div class="player-card-actions">' +
-                copyPidBtn +
-                copyHwidBtn +
-                modBtn +
-                freecamBtn +
-                '<button class="icon-btn icon-btn-small" onclick="kickPlayer(' + id + ')" title="Kick">' +
-                    '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>' +
-                '</button>' +
-                '<button class="icon-btn icon-btn-small icon-btn-danger" onclick="banPlayer(' + id + ')" title="Ban">' +
-                    '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>' +
-                '</button>' +
-                (hasAccount && typeof modLoggedIn !== 'undefined' && modLoggedIn ?
-                '<button class="icon-btn icon-btn-small icon-btn-danger" onclick="globalBanPlayer(\'' + escapeHtml(player.name).replace(/'/g, "\\'") + '\')" title="Global Ban (GCBDB)" style="background:var(--danger,#e53935);color:#fff;">' +
-                    '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>' +
-                '</button>' : '') +
-            '</div>';
     });
+
+    plantsCountEl.textContent = plantsCount;
+    zombiesCountEl.textContent = zombiesCount;
+    unknownCountEl.textContent = unknownCount;
+    unknownSectionEl.style.display = unknownCount > 0 ? 'flex' : 'none';
 }
 
 function kickPlayer(playerId) {
@@ -1583,10 +1706,14 @@ function updateModClientView(inst) {
             '</button>';
         }
 
+        var _modIconKey = (inst && typeof getPlayerCharIconKey === 'function')
+            ? getPlayerCharIconKey(inst.game, (playerData && playerData.className) || (peerData && peerData.className) || '', (playerData && playerData.weaponName) || (peerData && peerData.weaponName) || '')
+            : null;
+        var _modAvatarInner = _modIconKey && typeof charIconImg === 'function'
+            ? charIconImg(_modIconKey)
+            : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
         card.innerHTML =
-            '<div class="player-card-avatar">' +
-                '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>' +
-            '</div>' +
+            '<div class="player-card-avatar">' + _modAvatarInner + '</div>' +
             '<div class="player-card-info">' +
                 '<div class="player-card-name">' + escapeHtml(name) + '</div>' +
             '</div>' +
