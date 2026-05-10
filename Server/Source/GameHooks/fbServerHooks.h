@@ -120,6 +120,17 @@ DECLARE_HOOK(
 	const char* nickname
 );
 
+#ifdef CYPRESS_BFN
+DECLARE_HOOK(
+	fb_ServerPlayer_disconnect,
+	__fastcall,
+	void,
+
+	fb::ServerPlayer* thisPtr,
+	fb::SecureReason reason,
+	eastl::new_string* reasonText
+);
+#else
 DECLARE_HOOK(
 	fb_ServerPlayer_disconnect,
 	__fastcall,
