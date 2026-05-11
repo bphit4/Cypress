@@ -1,10 +1,10 @@
 #include "pch.h"
-#include "Client.h"
+#include "Cypress/Core/Client.h"
 #include <cstdlib>
 #include <fb/Engine/Message.h>
 #include <fb/Engine/TypeInfo.h>
 #include <HWID.h>
-#include <Core/Logging.h>
+#include <Cypress/Core/Logging.h>
 #include <FreeCam.h>
 
 #ifdef CYPRESS_BFN

@@ -1,7 +1,7 @@
 ﻿#include "pch.h"
 #include <SideChannel.h>
-#include <Core/Logging.h>
-#include <Core/Program.h>
+#include <Cypress/Core/Logging.h>
+#include <Cypress/Core/Program.h>
 #include <HWID.h>
 #include <fstream>
 #include <random>

@@ -2,11 +2,11 @@
 #ifdef CYPRESS_GW2
 #include "PlayerSpawnListener.h"
 
-#include <Core/Logging.h>
+#include <Cypress/Core/Logging.h>
 #include "LoadoutValidator.h"
-#include <Core/Program.h>
+#include <Cypress/Core/Program.h>
 
-#include "fb/TypeInfo/SecureReason.h"
+#include "fb/SecureReason.h"
 
 DEFINE_HOOK(
 	fb_PVZSpawnManager_spawnOnSpawnPoint,

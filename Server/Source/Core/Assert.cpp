@@ -1,7 +1,6 @@
 #include "pch.h"
-#include "Assert.h"
-
-#include <Core/Logging.h>
+#include "Cypress/Core/Assert.h"
+#include <Cypress/Core/Logging.h>
 
 namespace
 {

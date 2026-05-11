@@ -2,12 +2,11 @@
 #include "fbServerHooks.h"
 
 #include <string>
-#include <sstream>
 #include <thread>
 #include <intrin.h>
-#include <Core/Program.h>
-#include <Core/Logging.h>
-#include <Core/Console/ConsoleFunctions.h>
+#include <Cypress/Core/Program.h>
+#include <Cypress/Core/Logging.h>
+#include <Cypress/Core/Console/ConsoleFunctions.h>
 #include <fb/Engine/Server.h>
 #include <fb/Engine/ServerGameContext.h>
 
@@ -125,6 +124,7 @@ static bool IsNameValid(const std::string& name, std::string& reason)
 }
 
 #if(HAS_DEDICATED_SERVER)
+#ifndef CYPRESS_BFN
 DEFINE_HOOK(
 	fb_Server_start,
 	__fastcall,
@@ -147,7 +147,35 @@ DEFINE_HOOK(
 			g_program->GetServer()->StartSideChannel();
 	}
 
-#ifdef CYPRESS_BFN
+#endif
+	return Orig_fb_Server_start(thisPtr, info, spawnOverrides);
+}
+
+#else
+
+DEFINE_HOOK(
+	fb_Server_start,
+	__fastcall,
+	__int64,
+
+	void* thisPtr,
+	fb::ServerSpawnInfo* info,
+	Kyber::ServerSpawnOverrides* spawnOverrides,
+	Kyber::SocketManager* socketManager
+)
+{
+#if(HAS_DEDICATED_SERVER)
+	if (!g_program->GetInitialized())
+	{
+		bool wsaInit = g_program->InitWSA();
+		CYPRESS_ASSERT(wsaInit, "WSA failed to initialize!");
+		g_program->SetInitialized(true);
+
+		// Start side-channel TCP listener for server
+		if (g_program->IsServer())
+			g_program->GetServer()->StartSideChannel();
+	}
+
 	static bool startedBfnMetadataThread = false;
 	if (g_program->IsServer() && !startedBfnMetadataThread)
 	{
@@ -163,11 +191,11 @@ DEFINE_HOOK(
 			}
 		}).detach();
 	}
-#endif
 
 #endif
-	return Orig_fb_Server_start(thisPtr, info, spawnOverrides);
+	return Orig_fb_Server_start(thisPtr, info, spawnOverrides, socketManager);
 }
+#endif
 
 #ifdef CYPRESS_BFN
 DEFINE_HOOK(
@@ -845,7 +873,7 @@ DEFINE_HOOK(
 			thisPtr->getPlayerId(),
 			thisPtr->m_name,
 			reasonStr,
-			fb::SecureReason_ToString(reason));
+			fb::SecureReason_toString(reason));
 
 		if (Cypress_IsEmbeddedMode())
 			Cypress_EmitJsonPlayerEvent("playerLeave", thisPtr->getPlayerId(), thisPtr->m_name, reasonStr);
@@ -885,7 +913,7 @@ DEFINE_HOOK(
 			thisPtr->getPlayerId(),
 			thisPtr->m_name,
 			reasonStr,
-			fb::SecureReason_toString[reason]);
+			fb::SecureReason_toString(reason));
 
 		if (Cypress_IsEmbeddedMode())
 			Cypress_EmitJsonPlayerEvent("playerLeave", thisPtr->getPlayerId(), thisPtr->m_name, reasonStr);

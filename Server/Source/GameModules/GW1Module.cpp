@@ -6,8 +6,8 @@
 #include <GameHooks/fbEnginePeerHooks.h>
 #include <GameHooks/fbServerHooks.h>
 #include <GameHooks/fbClientHooks.h>
-#include <Core/Server.h>
-#include <Core/Console/ConsoleFunctions.h>
+#include <Cypress/Core/Server.h>
+#include <Cypress/Core/Console/ConsoleFunctions.h>
 
 void Cypress::GW1Module::InitGameHooks()
 {

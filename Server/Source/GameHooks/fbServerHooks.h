@@ -5,11 +5,7 @@
 #include <fb/Engine/ServerPlayer.h>
 #include <fb/Engine/ServerPlayerManager.h>
 #include <fb/Engine/ServerConnection.h>
-#ifdef CYPRESS_BFN
 #include <fb/SecureReason.h>
-#else
-#include <fb/TypeInfo/SecureReason.h>
-#endif
 #include <Kyber/SocketManager.h>
 
 #ifdef CYPRESS_BFN
@@ -21,6 +17,7 @@
 
 #if(HAS_DEDICATED_SERVER)
 
+#ifndef CYPRESS_BFN
 DECLARE_HOOK(
 	fb_Server_start,
 	__fastcall,
@@ -30,6 +27,18 @@ DECLARE_HOOK(
 	fb::ServerSpawnInfo* info,
 	Kyber::ServerSpawnOverrides* spawnOverrides
 );
+#else
+DECLARE_HOOK(
+	fb_Server_start,
+	__fastcall,
+	__int64,
+
+	void* thisPtr,
+	fb::ServerSpawnInfo* info,
+	Kyber::ServerSpawnOverrides* spawnOverrides,
+	Kyber::SocketManager* socketManager
+);
+#endif
 
 DECLARE_HOOK(
 	fb_Server_update,

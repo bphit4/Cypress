@@ -7,9 +7,9 @@
 #include <GameHooks/fbEnginePeerHooks.h>
 #include <GameHooks/fbServerHooks.h>
 #include <GameHooks/fbClientHooks.h>
-#include <Core/Server.h>
-#include <Core/Program.h>
-#include <Core/Console/ConsoleFunctions.h>
+#include <Cypress/Core/Server.h>
+#include <Cypress/Core/Program.h>
+#include <Cypress/Core/Console/ConsoleFunctions.h>
 
 #include "Anticheat/ClientLevelLoadingProtection.h"
 #include "Anticheat/PlayerSpawnListener.h"

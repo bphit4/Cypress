@@ -3,7 +3,7 @@
 namespace fb
 {
 #ifdef CYPRESS_BFN
-    enum SecureReason : int32_t
+    enum SecureReason
     {
         SecureReason_MismatchingContent = 126688420,
         SecureReason_VirtualServerExpired = 161719482,
@@ -61,7 +61,7 @@ namespace fb
         SecureReason_ConnectionHandshaking = -93304723
     };
 
-    static const char* SecureReason_ToString(SecureReason reason)
+    static const char* SecureReason_toString(SecureReason reason)
     {
         switch (reason) {
         case SecureReason_Ok: return "Ok";
@@ -168,7 +168,7 @@ namespace fb
         SecureReason_Count
     };
 
-    static const char* SecureReason_toString[] = {
+    static const char* SecureReason_toStringArray[] = {
     "Ok",
     "WrongProtocolVersion",
     "WrongTitleVersion",
@@ -224,5 +224,13 @@ namespace fb
     "TrialExpired",
     "TrialUpgraded"
     };
+
+    static const char* SecureReason_toString(SecureReason reason)
+    {
+        if (reason >= SecureReason_Ok && reason < SecureReason_Count)
+            return SecureReason_toStringArray[reason];
+
+        return "Unknown reason";
+    }
 #endif
 }

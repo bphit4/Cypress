@@ -1,8 +1,5 @@
 #pragma once
 #include <EASTL/string.h>
-#ifdef CYPRESS_BFN
-#include <EASTL/new_string.h>
-#endif
 #include <EASTL/vector.h>
 #include <fb/Engine/ServerPlayer.h>
 #include <fb/Engine/ServerConnection.h>

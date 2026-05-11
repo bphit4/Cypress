@@ -3,12 +3,13 @@
 #include "LoadoutValidator.h"
 #include <unordered_map>
 #include <StringUtil.h>
+#include <EASTL/sort.h>
 
 #include <fb/Engine/ServerPlayer.h>
 #include <fb/TypeInfo/PVZCharacterCustomizationAsset.h>
 #include <fb/Engine/ResourceManager.h>
 
-#include "Core/Program.h"
+#include "Cypress/Core/Program.h"
 
 bool LoadoutValidator::isValidTeamForFaction(int teamId, bool isPlant, bool isZombie) {
     if (isPlant && teamId != 2) return false;
@@ -152,6 +153,7 @@ void LoadoutValidator::init()
 {
     weaponSets.clear();
     upgradeSets.clear();
+    upgradableWeaponIds.clear();
 
     const std::set<std::string>& effectiveBlacklist = kitBlacklist;
 
@@ -227,9 +229,12 @@ void LoadoutValidator::init()
                 case fb::WeaponSlot::WeaponSlot_2: set.ability2.insert(weaponHash); break;
                 case fb::WeaponSlot::WeaponSlot_3: set.ability3.insert(weaponHash); break;
                 case fb::WeaponSlot::WeaponSlot_4:
-                    set.alternate.insert(weaponHash);
-                    set.allowAlternate = true;
-                    break;
+                    {
+                        upgradableWeaponIds.push_back(weapon->getIdentifier());
+                        set.alternate.insert(weaponHash);
+                        set.allowAlternate = true;
+                        break;
+                    }
                 case fb::WeaponSlot::WeaponSlot_5: set.weaponSlot5.insert(weaponHash); break;
                 case fb::WeaponSlot::WeaponSlot_6: set.weaponSlot6.insert(weaponHash); break;
                 case fb::WeaponSlot::WeaponSlot_7: set.weaponSlot7.insert(weaponHash); break;

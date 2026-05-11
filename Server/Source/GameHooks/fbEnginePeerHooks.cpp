@@ -1,8 +1,8 @@
 #include "pch.h"
 #include "fbEnginePeerHooks.h"
 
-#include <Core/Program.h>
-#include <Core/Logging.h>
+#include <Cypress/Core/Program.h>
+#include <Cypress/Core/Logging.h>
 #include <Kyber/SocketManager.h>
 
 #ifdef CYPRESS_BFN
@@ -68,6 +68,7 @@ DEFINE_HOOK(
 	Orig_fb_EnginePeer_init(thisPtr, socketManager, address, titleId, versionId);
 }
 #else
+
 DEFINE_HOOK(
 	fb_EnginePeer_init,
 	__fastcall,
@@ -91,16 +92,6 @@ DEFINE_HOOK(
 	}
 
 	char overrideAddrBuf[32] = {};
-	if (strstr(address, ":251"))
-	{
-		char portBuf[16] = {};
-		if (GetEnvironmentVariableA("CYPRESS_CLIENT_PORT", portBuf, sizeof(portBuf)) > 0 && portBuf[0] != '\0')
-		{
-			snprintf(overrideAddrBuf, sizeof(overrideAddrBuf), ":%s", portBuf);
-			address = overrideAddrBuf;
-			CYPRESS_LOGMESSAGE(LogLevel::Info, "EnginePeer::init -> overriding client port to {}", address);
-		}
-	}
 
 #if(CAN_HOST_SERVER)
 	if (strstr(address, ":252"))
@@ -123,6 +114,14 @@ DEFINE_HOOK(
 #endif
 	if (strstr(address, ":251"))
 	{
+		char portBuf[16] = {};
+		if (GetEnvironmentVariableA("CYPRESS_CLIENT_PORT", portBuf, sizeof(portBuf)) > 0 && portBuf[0] != '\0')
+		{
+			snprintf(overrideAddrBuf, sizeof(overrideAddrBuf), ":%s", portBuf);
+			address = overrideAddrBuf;
+			CYPRESS_LOGMESSAGE(LogLevel::Info, "EnginePeer::init -> overriding client port to {}", address);
+		}
+
 		CYPRESS_LOGMESSAGE(LogLevel::Info, "EnginePeer::init -> using Client (Serverbound) socket manager");
 		socketManager = g_program->GetClient()->GetSocketManager();
 	}

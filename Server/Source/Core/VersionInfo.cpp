@@ -1,5 +1,5 @@
 #include "pch.h"
-#include "VersionInfo.h"
+#include "Cypress/Core/VersionInfo.h"
 
 std::string GetCypressVersion()
 {

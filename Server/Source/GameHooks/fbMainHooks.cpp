@@ -4,7 +4,7 @@
 #endif
 
 #include "fbMainHooks.h"
-#include <Core/Program.h>
+#include <Cypress/Core/Program.h>
 #ifdef CYPRESS_GW1
 #include <fb/Engine/SettingsManager.h>
 #endif

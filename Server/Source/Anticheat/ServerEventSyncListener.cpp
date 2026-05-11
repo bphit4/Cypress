@@ -1,7 +1,7 @@
 #include "pch.h"
 #ifdef CYPRESS_GW2
 #include "ServerEventSyncListener.h"
-#include <Core/Program.h>
+#include <Cypress/Core/Program.h>
 
 #include <EASTL/map.h>
 

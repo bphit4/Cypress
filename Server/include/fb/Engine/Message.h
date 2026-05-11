@@ -37,14 +37,24 @@ namespace fb
 	public:
 		int m_category;
 		int m_type;
-		const char* senderCallstack;
-		long double m_localPlayerId;
-		const Message* m_next;
-		int m_postedAtProcessMessageCounter;
-		bool m_ownedByMessageManager;
+		int m_localPlayerId;
+		mutable int64_t m_dispatchTime;
+		mutable const Message* m_next;
+		mutable int m_postedAtProcessMessageCounter;
+		mutable bool m_ownedByMessageManager;
+
+		Message(int category, int type, int localPlayerId = 255)
+			: m_category( category )
+			, m_type(type)
+			, m_localPlayerId( localPlayerId )
+			, m_ownedByMessageManager( false )
+		{}
+
+		virtual ~Message() {}
 
 		bool is(const char* messageName) {
 			return m_type == fnvHash(messageName);
 		}
 	};
+	static_assert(sizeof(Message) == 0x30);
 }

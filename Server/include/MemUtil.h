@@ -30,6 +30,46 @@ static void MemPatch(DWORD64 address, unsigned __int8* pByte, int numberofbytest
     VirtualProtect((PVOID*)(address), numberofbytestowrite, dwOld, &dwOld);
 }
 
+template <class T>
+constexpr int SeeBits(T func)
+{
+    union
+    {
+        T ptr;
+        int i;
+    };
+    ptr = func;
+
+    return i;
+}
+
+template <class T>
+constexpr int VFTableIndexOf(T func)
+{
+    return SeeBits(func) / sizeof(void*);
+}
+
+static void* GetVirtualFunc(void* obj, size_t index)
+{
+    void** vtable = *reinterpret_cast<void***>(obj);
+    return vtable[index];
+}
+
+template <typename R, typename... Args>
+R CallVirtualFunc(void* obj, size_t index, Args... args)
+{
+    void* func = GetVirtualFunc(obj, index);
+    auto castedFunc = reinterpret_cast<R(*)(Args...)>(func);
+    return castedFunc(args...);
+}
+
+template <typename R, typename... Args>
+R CallFunc(uintptr_t address, Args... args)
+{
+    auto castedFunc = reinterpret_cast<R(*)(Args...)>(address);
+    return castedFunc(args...);
+}
+
 // hook macros by NM
 // DEFINE_HOOK and SETUP_HOOK require that the function body for the hook is defined manually after their use
 

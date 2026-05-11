@@ -11,6 +11,10 @@ namespace fb
 	class PVZCharacterWeaponUnlockAsset : public Asset
 	{
 	public:
+		uint32_t getIdentifier()
+		{
+			return ptrread<uint32_t>( this, 0x28 );
+		}
 
 		fb::Array<fb::Asset*> getSelectableWeaponUpgrades() {
 			void* WeaponUpgrades = ptrread<void*>(this, 0xE8);

@@ -33,7 +33,7 @@ static inline uint fnvHash(const char* theStr)
 	return fnvHashWithSeed(theStr, 5381);
 }
 
-static constexpr uint fnvHashConstexpr(const char* theStr, uint theHash = 5381)
+static constexpr int fnvHashConstexpr(const char* theStr, uint theHash = 5381)
 {
 	return !*theStr ? theHash : fnvHashConstexpr(theStr + 1, uint(theHash * ulong(33) ^ *theStr));
 }

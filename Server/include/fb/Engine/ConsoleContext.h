@@ -1,5 +1,5 @@
 #pragma once
-#include <Core/Logging.h>
+#include <Cypress/Core/Logging.h>
 #include <sstream>
 
 //ConsoleStream class from KYBER

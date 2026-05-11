@@ -1,7 +1,7 @@
 #include "pch.h"
 #ifdef CYPRESS_GW2
 #include "ClientLevelLoadingProtection.h"
-#include <Core/Program.h>
+#include <Cypress/Core/Program.h>
 
 DEFINE_HOOK(
 	fb_PVZServerLevelManager_onMessage,

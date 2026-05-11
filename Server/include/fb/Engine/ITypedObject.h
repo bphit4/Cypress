@@ -6,6 +6,6 @@ namespace fb
 	class ITypedObject
 	{
 	public:
-		virtual class ClassInfo* getType();
+		virtual ClassInfo* getType() = 0;
 	};
 }

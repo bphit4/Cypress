@@ -9,7 +9,7 @@
 #include <string>
 #include <algorithm>
 
-#include <Core/Logging.h>
+#include <Cypress/Core/Logging.h>
 
 namespace Kyber
 {

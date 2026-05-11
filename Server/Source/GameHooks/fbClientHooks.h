@@ -1,16 +1,11 @@
 #pragma once
 #include <MemUtil.h>
+#include <EASTL/string.h>
 #ifdef CYPRESS_BFN
 #include <EASTL/new_string.h>
-#else
-#include <EASTL/string.h>
 #endif
 #include <fb/Engine/Client.h>
-#ifdef CYPRESS_BFN
 #include <fb/SecureReason.h>
-#else
-#include <fb/TypeInfo/SecureReason.h>
-#endif
 
 DECLARE_HOOK(
 	fb_Client_enterState,

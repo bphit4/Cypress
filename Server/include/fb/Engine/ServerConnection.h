@@ -1,9 +1,6 @@
 #pragma once
 #include <EASTL/string.h>
-#ifdef CYPRESS_BFN
-#include <EASTL/new_string.h>
 #include <fb/SecureReason.h>
-#endif
 
 #define OFFSET_SERVERCONNECTION__ONCREATEPLAYERMESSAGE CYPRESS_GW_SELECT(0x14064FA40, 0x14064FA40, 0x140F4BBE0)
 
@@ -24,15 +21,21 @@ namespace fb
             auto func = reinterpret_cast<void* (*)(ServerConnection*, unsigned int, bool)>(0x14064EF00);
             return func(this, localPlayerId, allowFail);
         }
+
+        void disconnect(SecureReason reason, const char* reasonText)
+        {
+            CallFunc<void, ServerConnection*, SecureReason, const char*>( 0x14064F130,
+            this, reason, reasonText);
+        }
 #endif
 
 #ifdef CYPRESS_BFN
         char pad_0A10[0xA10];
-        eastl::new_string m_machineId;
+        eastl::string m_machineId;
         char pad_0A3D[0x15];
         bool m_shouldDisconnect;
         SecureReason m_disconnectReason;
-        eastl::new_string m_reasonText;
+        eastl::string m_reasonText;
 
         void disconnect(SecureReason reason, const char* reasonStr)
         {
