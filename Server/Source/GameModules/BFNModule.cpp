@@ -39,6 +39,7 @@ void Cypress::BFNModule::InitGameHooks()
 
 	// fb::Client hooks
 	INIT_HOOK(fb_Client_enterState, OFFSET_FB_CLIENT_ENTERSTATE);
+	INIT_HOOK(fb_OnlineManager_onGotDisconnected, OFFSET_FB_ONLINEMANAGER_ONGOTDISCONNECTED);
 	INIT_HOOK(fb_EAUser_ctor, OFFSET_FB_EAUSER_CTOR);
 }
 

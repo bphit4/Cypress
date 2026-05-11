@@ -1,6 +1,9 @@
 #pragma once
 #include <MemUtil.h>
 #include <EASTL/string.h>
+#ifdef CYPRESS_BFN
+#include <EASTL/new_string.h>
+#endif
 #include <fb/Engine/Client.h>
 #include <fb/SecureReason.h>
 
@@ -37,6 +40,16 @@ DECLARE_HOOK(
 );
 
 #ifdef CYPRESS_BFN
+DECLARE_HOOK(
+	fb_OnlineManager_onGotDisconnected,
+	__fastcall,
+	void,
+
+	void* thisPtr,
+	fb::SecureReason reason,
+	eastl::new_string* reasonText
+);
+
 DECLARE_HOOK(
 	fb_EAUser_ctor,
 	__fastcall,
