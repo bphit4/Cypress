@@ -151,7 +151,7 @@ window.external.receiveMessage(function (msg) {
         case 'charIcon':
             if (data.key && data.data) {
                 CHAR_ICON_CACHE[data.key] = base64ToBlobUrl(data.data, 'image/png');
-                document.querySelectorAll('img[data-icon-key="' + data.key + '"').forEach(function(img) {
+                document.querySelectorAll('img[data-icon-key="' + CSS.escape(data.key) + '"').forEach(function(img) {
                     img.src = CHAR_ICON_CACHE[data.key];
                     img.classList.remove('char-icon-pending');
                 });

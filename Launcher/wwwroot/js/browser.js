@@ -229,7 +229,7 @@ function renderBrowserList(servers) {
         var gameClass = (s.game || 'GW2').toLowerCase().replace(/[^a-z0-9]/g, '');
         var cachedIcon = browserIconCache[key];
 
-        html += '<div class="browser-entry" onclick="onBrowserEntryClick(\'' + escapeAttr(key) + '\')" ondblclick="onBrowserEntryDblClick(\'' + escapeAttr(key) + '\')">';
+        html += '<div class="browser-entry" onclick="onBrowserEntryClick(\'' + escapeJs(key) + '\')" ondblclick="onBrowserEntryDblClick(\'' + escapeJs(key) + '\')">';
         // game background
         initGameBgCache();
         var gameBgUrl = GAME_BG_CACHE[s.game || 'GW2'] ? toBlobUrl(GAME_BG_CACHE[s.game || 'GW2']) : '';
@@ -327,10 +327,10 @@ function renderBrowserList(servers) {
         html += '</div>';
         if (modLoggedIn) {
             var isPinned = s.pinned;
-            html += '<button class="browser-pin-btn' + (isPinned ? ' pinned' : '') + '" onclick="event.stopPropagation(); browserTogglePin(\'' + escapeAttr(key) + '\')" title="' + (isPinned ? 'Unpin server' : 'Pin server') + '">';
+            html += '<button class="browser-pin-btn' + (isPinned ? ' pinned' : '') + '" onclick="event.stopPropagation(); browserTogglePin(\'' + escapeJs(key) + '\')" title="' + (isPinned ? 'Unpin server' : 'Pin server') + '">';
             html += '<svg width="14" height="14" viewBox="0 0 24 24" fill="' + (isPinned ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.09 6.26L21 9.27l-5 3.9L17.18 20 12 16.77 6.82 20 8 13.17l-5-3.9 6.91-1.01z"/></svg>';
             html += '</button>';
-            html += '<button class="browser-ban-btn" onclick="event.stopPropagation(); browserBanServer(\'' + escapeAttr(key) + '\')" title="Ban this server">';
+            html += '<button class="browser-ban-btn" onclick="event.stopPropagation(); browserBanServer(\'' + escapeJs(key) + '\')" title="Ban this server">';
             html += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>';
             html += '</button>';
         } else if (s.pinned) {
