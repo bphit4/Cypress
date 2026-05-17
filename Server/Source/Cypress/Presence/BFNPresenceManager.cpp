@@ -169,7 +169,7 @@ namespace Cypress
 						inventoryFile.read(reinterpret_cast<char*>(&categoryId), 4);
 						inventoryFile.read(reinterpret_cast<char*>(&itemId), 4);
 
-						fb::ItemLoadout iL{categoryId, itemId};
+						fb::ItemLoadout iL{static_cast<uint32_t>(categoryId), static_cast<uint32_t>(itemId)};
 						lk.first->second.push_back(iL);
 					}
 				}

@@ -37,7 +37,7 @@ jobs:
         run: |
           set -x
           cd Launcher
-          dotnet build --configuration Release --no-restore
+          dotnet build --configuration Release --no-restore -f net8.0-windows
 
       - name: Publish for Linux ${{ matrix.arch }} (self-contained)
         run: |

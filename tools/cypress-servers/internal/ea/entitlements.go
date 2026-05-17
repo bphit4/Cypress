@@ -97,11 +97,7 @@ func FetchGameEntitlements(accessToken string) (map[string]string, error) {
 					Entitlement entitlementEntry `json:"entitlement"`
 				}
 				if json.Unmarshal(ebody, &single) == nil && single.Entitlement.GroupName != "" {
-					e := single.Entitlement
-					log.Printf("[ea] entitlements: uri entry group=%s type=%s status=%s id=%d", e.GroupName, e.EntitlementType, e.Status, e.EntitlementID)
-					results[idx] = e
-				} else {
-					log.Printf("[ea] entitlements: uri %s parse failed or empty groupName. body: %.256s", u, string(ebody))
+					results[idx] = single.Entitlement
 				}
 			}(i, uri)
 		}
