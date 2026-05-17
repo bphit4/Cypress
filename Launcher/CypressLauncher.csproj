@@ -39,28 +39,28 @@
     <Content Include="assets\cypressicons\ico\Burbank-CypressIcon.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="assets\cypressicons\png\Burbank-CypressIcon.png">
+    <Content Include="assets\cypressicons\webp\Burbank-CypressIcon.webp">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="assets\fonts\burbankbigcondensed_bold.otf">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="assets\gameicons\*.png">
+    <Content Include="assets\gameicons\*.webp">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="assets\gamebgs\*.jpg">
+    <Content Include="assets\gamebgs\*.webp">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="assets\mapbgs\**\*.jpg">
+    <Content Include="assets\mapbgs\**\*.webp">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="assets\modebgs\**\*.jpg">
+    <Content Include="assets\modebgs\**\*.webp">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="assets\AI_Sets\*.jpg">
+    <Content Include="assets\AI_Sets\*.webp">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="assets\CharacterIcons\**\*.png">
+    <Content Include="assets\CharacterIcons\**\*.webp">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
