@@ -4,5 +4,5 @@ contact_links:
     url: https://discord.gg/yGrY7dJKVg
     about: For help with setup, hosting, or general questions. use Discord rather than a GitHub issue.
   - name: Security vulnerability
-    url: https://github.com/v0ee/CypressV2/security/advisories/new
+    url: https://github.com/PvZ-Cypress/Cypress/security/advisories/new
     about: Report security issues privately here, not as a public issue.
