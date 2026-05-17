@@ -110,6 +110,9 @@ function onRelayRegionChanged(region) {
         document.getElementById('hostRelayAddress').value = '';
         document.getElementById('hostRelayKey').value = '';
         document.getElementById('hostRelayCode').value = '';
+        document.getElementById('hostRelayJoinLink').value = '';
+        var codeVal = document.getElementById('hostRelayCodeValue');
+        if (codeVal) codeVal.value = '';
         var codeDisplay = document.getElementById('hostRelayCodeDisplay');
         if (codeDisplay) codeDisplay.style.display = 'none';
     } else {
@@ -143,6 +146,13 @@ function getJoinRelayAddress() {
     var hidden = (document.getElementById('joinRelayAddress') || {}).value || '';
     if (hidden) return hidden;
     return RELAY_SERVERS[_joinRelayRegion] || RELAY_SERVERS.na;
+}
+
+function onRelayCodeInput(el) {
+    var v = el.value;
+    if (!v.startsWith('cypress://') && !v.startsWith('http://') && !v.startsWith('https://')) {
+        el.value = v.toUpperCase();
+    }
 }
 
 function parseRelayLink(prefix) {
@@ -206,8 +216,8 @@ function onRelayResolved(data) {
 function copyRelayCode() {
     const code = document.getElementById('hostRelayCodeValue');
     if (!code) return;
-    navigator.clipboard.writeText(code.textContent).then(function() {
-        showStatus('Relay code copied!', 'success');
+    navigator.clipboard.writeText(code.value).then(function() {
+        showStatus('Join link copied!', 'success');
     });
 }
 
@@ -263,8 +273,11 @@ function applyRelayLease(data) {
 
     if (data.hostRelayCode) {
         document.getElementById('hostRelayCode').value = data.hostRelayCode;
+    }
+    var joinLink = data.hostRelayJoinLink || document.getElementById('hostRelayJoinLink').value;
+    if (joinLink) {
         var codeVal = document.getElementById('hostRelayCodeValue');
-        if (codeVal) codeVal.textContent = data.hostRelayCode;
+        if (codeVal) codeVal.value = joinLink;
         var codeDisp = document.getElementById('hostRelayCodeDisplay');
         if (codeDisp) codeDisp.style.display = '';
     }

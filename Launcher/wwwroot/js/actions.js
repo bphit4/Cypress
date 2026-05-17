@@ -94,9 +94,9 @@ function startServer() {
     if (_launchPending) return;
     _launchPending = true;
     setTimeout(function() { _launchPending = false; }, 3000);
-    // if EU relay is on, get a fresh lease first then start
-    var euRelay = document.getElementById('hostUseEuRelay');
-    if (euRelay && euRelay.checked) {
+    var isRelay = document.getElementById('hostRelayMode').value === 'Relay';
+    var hasKey = document.getElementById('hostRelayKey').value.trim();
+    if (isRelay && !hasKey) {
         requestRelayLeaseAndStart();
         return;
     }
@@ -107,8 +107,6 @@ function doStartServer() {
     const argsField = document.getElementById('serverArgsPreview');
     const serverArgs = argsField ? argsField.value : '';
     const lsOverrides = getLoadscreenOverrides();
-    // ensure relay address is set when EU relay is on
-    var euChecked = document.getElementById('hostUseEuRelay');
     if (!document.getElementById('hostRelayAddress').value && _hostRelayRegion !== 'off') {
         document.getElementById('hostRelayAddress').value = RELAY_SERVERS[_hostRelayRegion] || RELAY_SERVERS.na;
     }
@@ -188,12 +186,12 @@ function loadUserData(data) {
     if (data.hostRelayJoinLink !== undefined) document.getElementById('hostRelayJoinLink').value = data.hostRelayJoinLink;
     if (data.hostRelayCode !== undefined) {
         document.getElementById('hostRelayCode').value = data.hostRelayCode;
-        if (data.hostRelayCode) {
-            var codeVal = document.getElementById('hostRelayCodeValue');
-            if (codeVal) codeVal.textContent = data.hostRelayCode;
-            var codeDisp = document.getElementById('hostRelayCodeDisplay');
-            if (codeDisp) codeDisp.style.display = '';
-        }
+    }
+    if (data.hostRelayJoinLink) {
+        var codeVal = document.getElementById('hostRelayCodeValue');
+        if (codeVal) codeVal.value = data.hostRelayJoinLink;
+        var codeDisp = document.getElementById('hostRelayCodeDisplay');
+        if (codeDisp) codeDisp.style.display = '';
     }
     if (data.dedicatedPassword !== undefined) document.getElementById('dedicatedPassword').value = data.dedicatedPassword;
     if (data.listedInBrowser !== undefined) document.getElementById('listedInBrowser').checked = data.listedInBrowser;

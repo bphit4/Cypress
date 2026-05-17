@@ -327,10 +327,10 @@
                     <div class="form-group full-width relay-config" id="joinRelayConfig" style="display:none;">
                         <label class="field-label" for="joinRelayCode">Relay Code</label>
                         <div class="relay-code-input-row">
-                            <input type="text" id="joinRelayCode" class="text-input relay-code-field" placeholder="e.g. K7X2MF" maxlength="10" oninput="this.value=this.value.toUpperCase(); autoResolveRelayCode();">
+                            <input type="text" id="joinRelayCode" class="text-input relay-code-field" placeholder="e.g. K7X2MF or cypress://..." oninput="onRelayCodeInput(this); autoResolveRelayCode();">
                             <button type="button" class="btn btn-secondary" onclick="resolveRelayCode()">Verify</button>
                         </div>
-                        <span class="field-hint" id="joinRelayCodeHint">Enter the code the host gave you. It will auto-verify.</span>
+                        <span class="field-hint" id="joinRelayCodeHint">Enter the 6-character code or paste the full join link the host gave you.</span>
                         <div id="joinRelayResolved" class="relay-resolved-info" style="display:none;"></div>
                         <input type="hidden" id="joinRelayPreset" value="custom">
                         <input type="hidden" id="joinRelayKey">
@@ -550,6 +550,14 @@
                             <input type="hidden" id="hostRelayJoinLink">
                             <input type="hidden" id="hostRelayCode">
                             <input type="hidden" id="hostRelayServerName">
+                            <div id="hostRelayCodeDisplay" style="display:none;margin-top:8px;">
+                                <div class="field-label" style="margin-bottom:4px;">Join Link</div>
+                                <div style="display:flex;gap:6px;align-items:center;">
+                                    <input type="text" id="hostRelayCodeValue" class="text-input" readonly style="font-family:monospace;font-size:12px;flex:1;">
+                                    <button type="button" class="btn btn-secondary" onclick="copyRelayCode()" style="white-space:nowrap;">Copy</button>
+                                </div>
+                                <span class="field-hint">Share this link with players so they can join your server.</span>
+                            </div>
                         </div>
                         <div class="form-group">
                             <label class="field-label" for="dedicatedPassword">Server Password</label>
