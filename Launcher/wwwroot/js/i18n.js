@@ -6,6 +6,7 @@
 //       add data-i18n-tip="key" for data-tip tooltip attributes
 
 window._i18nStrings = {};
+window._i18nLangMeta = {};
 
 window.t = function(key, vars) {
     var str = window._i18nStrings[key];
@@ -21,21 +22,47 @@ window.t = function(key, vars) {
 function onTranslationsList(data) {
     var select = document.getElementById('languageSelect');
     if (!select || !data.langs) return;
-    var current = localStorage.getItem('cypress_lang') || 'en_us';
+    // migrate old underscore-format locale codes to BCP 47 (e.g. zh_hk -> zh-HK, es_419 -> es-419)
+    var _storedLang = localStorage.getItem('cypress_lang');
+    if (_storedLang && _storedLang.indexOf('_') !== -1) {
+        var _parts = _storedLang.split('_');
+        var _normalized = _parts[0].toLowerCase() + '-' + (/^\d+$/.test(_parts[1]) ? _parts[1] : _parts[1].toUpperCase());
+        localStorage.setItem('cypress_lang', _normalized);
+    }
+    var current = localStorage.getItem('cypress_lang') || 'en-US';
     select.innerHTML = '';
-    data.langs.forEach(function(lang) {
+    data.langs.forEach(function(item) {
+        var lang   = typeof item === 'string' ? item : item.lang;
+        var name   = (typeof item === 'object' && item.name)   ? item.name   : lang;
+        var author = (typeof item === 'object' && item.author) ? item.author : '';
+        window._i18nLangMeta[lang] = { name: name, author: author };
         var opt = document.createElement('option');
         opt.value = lang;
-        opt.textContent = lang;
+        opt.textContent = name + ' (' + lang + ')';
         if (lang === current) opt.selected = true;
         select.appendChild(opt);
     });
+    _updateLangAuthorHint(current);
 }
 
 function onLanguageChanged(lang) {
     if (!lang) return;
     localStorage.setItem('cypress_lang', lang);
     send('getTranslations', { lang: lang });
+    _updateLangAuthorHint(lang);
+}
+
+function _updateLangAuthorHint(lang) {
+    var hint = document.getElementById('langAuthorHint');
+    if (!hint) return;
+    var cached = window._i18nLangMeta[lang];
+    var author = cached ? cached.author : '';
+    if (author) {
+        hint.textContent = t('profile.translation_by') + ' ' + author;
+        hint.style.display = '';
+    } else {
+        hint.style.display = 'none';
+    }
 }
 
 function applyDomTranslations() {
@@ -63,4 +90,26 @@ function applyDomTranslations() {
         var val = window._i18nStrings[key];
         if (val !== undefined) el.setAttribute('data-tip', val);
     });
+
+    // rerender picker uis whose option elements carry data-i18n translations,
+    // since renderPickerOptions runs at init before translations arrive
+    // (this is a bit hacky i know)
+    if (typeof renderPickerOptions === 'function') {
+        var translatedSelects = new Set();
+        document.querySelectorAll('select option[data-i18n]').forEach(function(opt) {
+            var select = opt.closest('select');
+            if (select && select.id) translatedSelects.add(select.id);
+        });
+        translatedSelects.forEach(function(id) { renderPickerOptions(id); });
+    }
+    if (typeof addPlaylistEntry === 'function') {
+        var plEntries = document.getElementById('plEntries');
+        if (plEntries && !plEntries.querySelector('.pl-entry')) {
+            addPlaylistEntry();
+        }
+    }
+
+    // re-render author hint with now-translated "Translation by" string
+    var _loadedMeta = window._i18nStrings && window._i18nStrings['_meta'];
+    if (_loadedMeta && _loadedMeta.lang) _updateLangAuthorHint(_loadedMeta.lang);
 }

@@ -8,7 +8,6 @@
 </head>
 <body style="visibility:hidden">
 <script>try{if(localStorage.getItem('cypress_dark')==='1')document.body.classList.add('dark-mode');}catch(e){}</script>
-    <!-- tos agreement modal, shown on first launch -->
     <div class="server-modal-backdrop" id="tosModalBackdrop" style="display:none;">
         <div class="server-modal" style="max-width:480px;" onclick="event.stopPropagation()">
             <h3 class="server-modal-title" data-i18n="tos.title">Welcome to Cypress</h3>
@@ -25,7 +24,6 @@
         </div>
     </div>
 
-    <!-- ea account login modal -->
     <div class="auth-modal-backdrop" id="authModalBackdrop" style="display:none;" onclick="hideAuthModal()">
         <div class="auth-modal" onclick="event.stopPropagation()">
             <button class="auth-modal-close" onclick="hideAuthModal()" data-i18n-title="auth.dismiss_title" title="Dismiss">✕</button>
@@ -247,9 +245,10 @@
         <div class="form-group">
             <label class="field-label" for="languageSelect" data-i18n="profile.language_label">Language</label>
             <select id="languageSelect" class="text-input" onchange="onLanguageChanged(this.value)">
-                <option value="en_us">English (en_us)</option>
+                <option value="en-US">English (en-US)</option>
             </select>
             <span class="field-hint" data-i18n="profile.language_hint">Restart not required. Custom translations can be placed in %AppData%\Cypress\Translations.</span>
+            <span class="field-hint" id="langAuthorHint" style="display:none;"></span>
         </div>
     </div>
     <div class="profile-section">

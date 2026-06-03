@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "lang": "en_us",
+    "lang": "en-US",
     "name": "English (US)",
     "author": "v0e"
   },
@@ -103,6 +103,7 @@
   "profile.dark_mode_desc": "Switch to a dark, low-contrast theme",
   "profile.language_label": "Language",
   "profile.language_hint": "Restart not required. Custom translations can be placed in %AppData%\\Cypress\\Translations.",
+  "profile.translation_by": "Translation by",
   "profile.game_settings_section": "Game Settings",
   "profile.fov_label": "Field of View",
   "profile.launch_args_label": "Launch Arguments",

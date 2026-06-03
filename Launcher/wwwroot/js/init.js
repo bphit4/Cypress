@@ -13,10 +13,9 @@
     syncRelayUi('join');
     syncRelayUi('host');
     syncFloatingFooter('join');
-    addPlaylistEntry();
     initMotdEditor();
     buildMotdColorPresets();
-    send('getTranslations', { lang: localStorage.getItem('cypress_lang') || 'en_us' });
+    send('getTranslations', { lang: localStorage.getItem('cypress_lang') || 'en-US' });
     send('getTranslationsList', {});
     send('checkTos', {});
     send('checkUpdates', {});

@@ -25,6 +25,7 @@ namespace Cypress
 	{
 		SOCKET sock = INVALID_SOCKET;
 		std::string name;
+		std::string ip;
 		std::string hwid;
 		Cypress::HardwareFingerprint fingerprint;
 		bool authenticated = false;

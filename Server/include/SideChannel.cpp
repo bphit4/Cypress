@@ -464,14 +464,16 @@ namespace Cypress
 			int nodelay = 1;
 			setsockopt(clientSock, IPPROTO_TCP, TCP_NODELAY, (const char*)&nodelay, sizeof(nodelay));
 
-			{
-				std::lock_guard<std::recursive_mutex> lock(m_peersMutex);
-				m_peers[clientSock] = SideChannelPeer{ clientSock };
-			}
-
-			char addrStr[INET_ADDRSTRLEN];
+			char addrStr[INET_ADDRSTRLEN] = {};
 			inet_ntop(AF_INET, &clientAddr.sin_addr, addrStr, sizeof(addrStr));
 			CYPRESS_DEBUG_LOGMESSAGE(LogLevel::Debug, "SideChannel: New connection from {}", addrStr);
+
+			{
+				std::lock_guard<std::recursive_mutex> lock(m_peersMutex);
+				SideChannelPeer& newPeer = m_peers[clientSock];
+				newPeer.sock = clientSock;
+				newPeer.ip = addrStr;
+			}
 
 			// reap finished threads before adding the new one
 			m_clientThreads.erase(
@@ -568,6 +570,25 @@ namespace Cypress
 	// called after hwid auth + identity verification (or directly if identity not enforced)
 	void SideChannelServer::FinalizeAuth(SideChannelPeer& peer, bool claimMod)
 	{
+		// disallow multiboxing when CYPRESS_BLOCK_MULTIBOXING=1
+		char blockDupBuf[8] = {};
+		if (GetEnvironmentVariableA("CYPRESS_BLOCK_MULTIBOXING", blockDupBuf, sizeof(blockDupBuf)) > 0
+			&& strcmp(blockDupBuf, "1") == 0 && !peer.ip.empty())
+		{
+			for (auto& [sock, other] : m_peers)
+			{
+				if (other.sock == peer.sock) continue;
+				if (other.authenticated && other.ip == peer.ip)
+				{
+					CYPRESS_LOGMESSAGE(LogLevel::Warning, "SideChannel: Rejecting {} from {} - duplicate IP", peer.name, peer.ip);
+					SendToPeer(peer, { {"type", "authResult"}, {"ok", false}, {"msg", "another instance is already connected from this IP!"} });
+					peer.authenticated = false;
+					if (m_onAuthReject && !peer.name.empty()) m_onAuthReject(peer.name, "Duplicate client instance");
+					return;
+				}
+			}
+		}
+
 		// check persisted moderator list now that accountId is populated
 		if (!peer.isModerator && !peer.accountId.empty())
 			peer.isModerator = IsModerator(peer.accountId);

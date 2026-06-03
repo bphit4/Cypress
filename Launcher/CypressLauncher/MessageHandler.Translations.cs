@@ -14,7 +14,7 @@ public partial class MessageHandler
     private void OnGetTranslations(string lang)
     {
         if (string.IsNullOrWhiteSpace(lang) || !System.Text.RegularExpressions.Regex.IsMatch(lang, @"^[a-zA-Z0-9_\-]{1,32}$"))
-            lang = "en_us";
+            lang = "en-US";
 
         string appdataDir = GetTranslationsDir();
         string appdataFile = Path.Combine(appdataDir, lang + ".json");
@@ -42,15 +42,15 @@ public partial class MessageHandler
 
         if (strings == null)
         {
-            if (lang != "en_us") { OnGetTranslations("en_us"); return; }
-            Send(new JObject { ["type"] = "translations", ["lang"] = "en_us", ["strings"] = new JObject() });
+            if (lang != "en-US") { OnGetTranslations("en-US"); return; }
+            Send(new JObject { ["type"] = "translations", ["lang"] = "en-US", ["strings"] = new JObject() });
             return;
         }
 
-        // merge en_us as fallback for any keys missing from this language
-        if (lang != "en_us")
+        // merge en-US as fallback for any keys missing from this language
+        if (lang != "en-US")
         {
-            string enFile = Path.Combine(AppContext.BaseDirectory, "assets", "translations", "en_us.json");
+            string enFile = Path.Combine(AppContext.BaseDirectory, "assets", "translations", "en-US.json");
             if (File.Exists(enFile))
             {
                 try
@@ -71,22 +71,36 @@ public partial class MessageHandler
 
     private void OnGetTranslationsList()
     {
-        var langs = new System.Collections.Generic.HashSet<string>();
+        var langs = new System.Collections.Generic.Dictionary<string, JObject>();
 
-        string bundledDir = Path.Combine(AppContext.BaseDirectory, "assets", "translations");
-        if (Directory.Exists(bundledDir))
+        void ReadDir(string dir)
         {
-            foreach (string f in Directory.GetFiles(bundledDir, "*.json"))
-                langs.Add(Path.GetFileNameWithoutExtension(f));
+            if (!Directory.Exists(dir)) return;
+            foreach (string f in Directory.GetFiles(dir, "*.json"))
+            {
+                string lang = Path.GetFileNameWithoutExtension(f);
+                if (langs.ContainsKey(lang)) continue;
+                var entry = new JObject { ["lang"] = lang };
+                try
+                {
+                    var j = JObject.Parse(File.ReadAllText(f));
+                    var meta = j["_meta"] as JObject;
+                    entry["name"] = meta?["name"]?.Value<string>() ?? lang;
+                    string? author = meta?["author"]?.Value<string>();
+                    if (!string.IsNullOrEmpty(author)) entry["author"] = author;
+                }
+                catch { entry["name"] = lang; }
+                langs[lang] = entry;
+            }
         }
 
-        string appdataDir = GetTranslationsDir();
-        if (Directory.Exists(appdataDir))
-        {
-            foreach (string f in Directory.GetFiles(appdataDir, "*.json"))
-                langs.Add(Path.GetFileNameWithoutExtension(f));
-        }
+        ReadDir(Path.Combine(AppContext.BaseDirectory, "assets", "translations"));
+        ReadDir(GetTranslationsDir());
 
-        Send(new JObject { ["type"] = "translationsList", ["langs"] = new JArray(langs.OrderBy(x => x)) });
+        Send(new JObject
+        {
+            ["type"] = "translationsList",
+            ["langs"] = new JArray(langs.Values.OrderBy(e => (string?)e["lang"]))
+        });
     }
 }

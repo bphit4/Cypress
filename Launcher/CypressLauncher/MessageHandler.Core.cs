@@ -396,7 +396,7 @@ public partial class MessageHandler
 					OnStartUpdate(msg);
 					break;
 				case "getTranslations":
-					OnGetTranslations((string?)msg["lang"] ?? "en_us");
+					OnGetTranslations((string?)msg["lang"] ?? "en-US");
 					break;
 				case "getTranslationsList":
 					OnGetTranslationsList();

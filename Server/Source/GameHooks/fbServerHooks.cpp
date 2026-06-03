@@ -3,6 +3,8 @@
 
 #include <string>
 #include <thread>
+#include <mutex>
+#include <unordered_map>
 #include <intrin.h>
 #include <Cypress/Core/Program.h>
 #include <Cypress/Core/Logging.h>
@@ -20,6 +22,17 @@
 #endif
 
 static constexpr int MAX_NAME_LENGTH = 32;
+
+static std::mutex g_multiboxMutex;
+static std::unordered_map<std::string, std::string> g_activeMachineIds; // machineId -> playerName
+static std::unordered_map<std::string, std::string> g_playerMachineIds; // playerName -> machineId
+
+static bool IsMultiboxingBlocked()
+{
+	char buf[8] = {};
+	return GetEnvironmentVariableA("CYPRESS_BLOCK_MULTIBOXING", buf, sizeof(buf)) > 0
+		&& strcmp(buf, "1") == 0;
+}
 
 // raw byte check before we touch the name as a std::string
 static bool IsNameSafeRaw(const char* s)
@@ -87,7 +100,7 @@ static bool IsNameValid(const std::string& name, std::string& reason)
 	for (char c : name)
 	{
 		if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') ||
-			c == ' ' || c == '-' || c == '_' || c == '!' || c == '?'))
+			c == ' ' || c == '-' || c == '_'))
 		{
 			reason = "invalid character in name";
 			return false;
@@ -608,6 +621,7 @@ DEFINE_HOOK(
 	if (nameLen < 3 || nameLen > 32)
 	{
 		thisPtr->disconnect(fb::SecureReason_KickedOut, "Invalid Username Length");
+		return nullptr;
 	}
 
 	for (const char* p = playerName; *p != '\0'; ++p)
@@ -615,7 +629,7 @@ DEFINE_HOOK(
 		if (iscntrl(static_cast<unsigned char>(*p)))
 		{
 			thisPtr->disconnect(fb::SecureReason_KickedOut, "Invalid Characters in Username");
-			break;
+			return nullptr;
 		}
 	}
 
@@ -623,8 +637,34 @@ DEFINE_HOOK(
 	if (strpbrk(playerName, bannedChars) != nullptr)
 	{
 		thisPtr->disconnect(fb::SecureReason_KickedOut, "Invalid Characters in Username");
+		return nullptr;
 	}
 
+	auto* gc = fb::ServerGameContext::GetInstance();
+	if (gc && gc->m_serverPlayerManager && gc->m_serverPlayerManager->findHumanByName(playerName))
+	{
+		CYPRESS_LOGTOSERVER(LogLevel::Warning, "Kicking {} - name already in use", playerName);
+		thisPtr->disconnect(fb::SecureReason_KickedOut, "Name already in use");
+		return nullptr;
+	}
+
+	if (IsMultiboxingBlocked())
+	{
+		std::string machineId = thisPtr->m_machineId.c_str();
+		if (!machineId.empty())
+		{
+			std::lock_guard<std::mutex> lock(g_multiboxMutex);
+			auto it = g_activeMachineIds.find(machineId);
+			if (it != g_activeMachineIds.end())
+			{
+				CYPRESS_LOGTOSERVER(LogLevel::Warning, "Kicking {} - multiboxing detected (machine {} already in use by {})", playerName, machineId, it->second);
+				thisPtr->disconnect(fb::SecureReason_KickedOut, "Multiboxing is not allowed on this server!");
+				return nullptr;
+			}
+			g_activeMachineIds[machineId] = playerName;
+			g_playerMachineIds[std::string(playerName)] = machineId;
+		}
+	}
 
 	CYPRESS_LOGTOSERVER(LogLevel::Info, "{} is trying to join from machine {}", playerName, thisPtr->m_machineId.c_str());
 	return Orig_fb_ServerConnection_onCreatePlayerMsg(thisPtr, msg);
@@ -711,6 +751,7 @@ DEFINE_HOOK(
 		thisPtr->m_shouldDisconnect = true;
 		thisPtr->m_disconnectReason = 0x4;
 		thisPtr->m_reasonText = "Invalid Username Length";
+		return nullptr;
 	}
 
 	for (const char* p = playerName; *p != '\0'; ++p)
@@ -720,7 +761,7 @@ DEFINE_HOOK(
 			thisPtr->m_shouldDisconnect = true;
 			thisPtr->m_disconnectReason = 0x4;
 			thisPtr->m_reasonText = "Invalid Characters in Username";
-			break;
+			return nullptr;
 		}
 	}
 
@@ -731,6 +772,27 @@ DEFINE_HOOK(
 		thisPtr->m_shouldDisconnect = true;
 		thisPtr->m_disconnectReason = 0x4;
 		thisPtr->m_reasonText = "Name already in use";
+		return nullptr;
+	}
+
+	if (IsMultiboxingBlocked())
+	{
+		std::string machineId = thisPtr->m_machineId.c_str();
+		if (!machineId.empty())
+		{
+			std::lock_guard<std::mutex> lock(g_multiboxMutex);
+			auto it = g_activeMachineIds.find(machineId);
+			if (it != g_activeMachineIds.end())
+			{
+				CYPRESS_LOGTOSERVER(LogLevel::Warning, "Kicking {} - multiboxing detected (machine {} already in use by {})", playerName, machineId, it->second);
+				thisPtr->m_shouldDisconnect = true;
+				thisPtr->m_disconnectReason = 0x4;
+				thisPtr->m_reasonText = "Multiboxing is not allowed on this server!";
+				return nullptr;
+			}
+			g_activeMachineIds[machineId] = playerName;
+			g_playerMachineIds[std::string(playerName)] = machineId;
+		}
 	}
 
 	CYPRESS_LOGTOSERVER(LogLevel::Info, "{} is trying to join from machine {}", playerName, thisPtr->m_machineId.c_str());
@@ -863,7 +925,16 @@ DEFINE_HOOK(
 	{
 #if(HAS_DEDICATED_SERVER)
 		if (g_program->IsServer())
+		{
 			g_program->GetServer()->ClearPlayerMetadata(thisPtr->m_name, thisPtr->getPlayerId());
+			std::lock_guard<std::mutex> lock(g_multiboxMutex);
+			auto it = g_playerMachineIds.find(std::string(thisPtr->m_name));
+			if (it != g_playerMachineIds.end())
+			{
+				g_activeMachineIds.erase(it->second);
+				g_playerMachineIds.erase(it);
+			}
+		}
 #endif
 		CYPRESS_LOGTOSERVER(LogLevel::Info, "[Id: {}] {} has left the server (Reason: {}, {})",
 			thisPtr->getPlayerId(),
@@ -903,7 +974,16 @@ DEFINE_HOOK(
 	{
 #if(HAS_DEDICATED_SERVER)
 		if (g_program->IsServer())
+		{
 			g_program->GetServer()->ClearPlayerMetadata(thisPtr->m_name, thisPtr->getPlayerId());
+			std::lock_guard<std::mutex> lock(g_multiboxMutex);
+			auto it = g_playerMachineIds.find(std::string(thisPtr->m_name));
+			if (it != g_playerMachineIds.end())
+			{
+				g_activeMachineIds.erase(it->second);
+				g_playerMachineIds.erase(it);
+			}
+		}
 #endif
 		CYPRESS_LOGTOSERVER(LogLevel::Info, "[Id: {}] {} has left the server (Reason: {}, {})",
 			thisPtr->getPlayerId(),
