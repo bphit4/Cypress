@@ -111,7 +111,7 @@ internal static class Program
 
 			string tempHtml = Path.Combine(AppContext.BaseDirectory, "cypress_launcher_" + Guid.NewGuid().ToString("N") + ".html");
 			File.WriteAllText(tempHtml, html, System.Text.Encoding.UTF8);
-			window.Load(new Uri(tempHtml).AbsoluteUri);
+			window.Load(tempHtml);
 			window.WaitForClose();
 
 			handler.KillAllInstances();
