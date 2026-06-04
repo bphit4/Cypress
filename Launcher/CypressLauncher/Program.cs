@@ -109,9 +109,9 @@ internal static class Program
 			SetupWindowsWindowHooks(window, handler);
 #endif
 
-			string tempHtml = Path.Combine(Path.GetTempPath(), "cypress_launcher_" + Guid.NewGuid().ToString("N") + ".html");
-			File.WriteAllText(tempHtml, html);
-			window.Load(tempHtml);
+			string tempHtml = Path.Combine(AppContext.BaseDirectory, "cypress_launcher_" + Guid.NewGuid().ToString("N") + ".html");
+			File.WriteAllText(tempHtml, html, System.Text.Encoding.UTF8);
+			window.Load(new Uri(tempHtml).AbsoluteUri);
 			window.WaitForClose();
 
 			handler.KillAllInstances();
@@ -147,7 +147,8 @@ internal static class Program
 		trayMenu.Items.Add("Show Cypress Launcher", null, (_, _) =>
 		{
 			trayIcon.Visible = false;
-			ShowWindow(handler.Window!.WindowHandle, SW_SHOW);
+			if (handler.Window == null) return;
+			ShowWindow(handler.Window.WindowHandle, SW_SHOW);
 			handler.Window.SetMinimized(false);
 		});
 		trayMenu.Items.Add("-");
@@ -162,7 +163,8 @@ internal static class Program
 		trayIcon.DoubleClick += (_, _) =>
 		{
 			trayIcon.Visible = false;
-			ShowWindow(handler.Window!.WindowHandle, SW_SHOW);
+			if (handler.Window == null) return;
+			ShowWindow(handler.Window.WindowHandle, SW_SHOW);
 			handler.Window.SetMinimized(false);
 		};
 
