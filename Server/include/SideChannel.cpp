@@ -570,6 +570,23 @@ namespace Cypress
 	// called after hwid auth + identity verification (or directly if identity not enforced)
 	void SideChannelServer::FinalizeAuth(SideChannelPeer& peer, bool claimMod)
 	{
+		// anti impersonation stuff
+		if (!peer.name.empty())
+		{
+			for (auto& [sock, other] : m_peers)
+			{
+				if (other.sock == peer.sock) continue;
+				if (other.authenticated && other.name == peer.name)
+				{
+					CYPRESS_LOGMESSAGE(LogLevel::Warning, "SideChannel: Rejecting {} - name already in use", peer.name);
+					SendToPeer(peer, { {"type", "authResult"}, {"ok", false}, {"msg", "name already in use"} });
+					peer.authenticated = false;
+					if (m_onAuthReject && !peer.name.empty()) m_onAuthReject(peer.name, "Name already in use");
+					return;
+				}
+			}
+		}
+
 		// disallow multiboxing when CYPRESS_BLOCK_MULTIBOXING=1
 		char blockDupBuf[8] = {};
 		if (GetEnvironmentVariableA("CYPRESS_BLOCK_MULTIBOXING", blockDupBuf, sizeof(blockDupBuf)) > 0

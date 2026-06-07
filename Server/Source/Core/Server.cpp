@@ -1314,14 +1314,30 @@ namespace Cypress
 		{
 			fb::ServerGameContext* gameContext = fb::ServerGameContext::GetInstance();
 			if (!gameContext || !gameContext->m_serverPlayerManager) return;
-			fb::ServerPlayer* player = gameContext->m_serverPlayerManager->findHumanByName(name.c_str());
-			if (!player) return;
+
+			fb::ServerPlayer* target = nullptr;
+			unsigned int highestId = 0;
+			auto& players = gameContext->m_serverPlayerManager->m_players;
+			for (size_t i = 0; i < players.size(); i++)
+			{
+				fb::ServerPlayer* p = players.at(i);
+	#ifndef CYPRESS_BFN
+			if (!p || p->isAIPlayer() || !p->m_name) continue;
+#else
+			if (!p || p->isAIPlayer()) continue;
+#endif
+				if (strcmp(p->m_name, name.c_str()) != 0) continue;
+				unsigned int pid = p->getPlayerId();
+				if (!target || pid > highestId) { target = p; highestId = pid; }
+			}
+
+			if (!target) return;
 #ifdef CYPRESS_BFN
-			fb::ServerConnection* conn = gameContext->m_serverPeer->connectionForPlayer(player);
+			fb::ServerConnection* conn = gameContext->m_serverPeer->connectionForPlayer(target);
 			if (conn) conn->disconnect(fb::SecureReason_KickedOut, reason.c_str());
 #else
 			eastl::string kickMsg(reason.c_str());
-			player->disconnect(fb::SecureReason_KickedOut, kickMsg);
+			target->disconnect(fb::SecureReason_KickedOut, kickMsg);
 #endif
 			CYPRESS_LOGTOSERVER(LogLevel::Info, "Kicked {} - {}", name, reason);
 		});
