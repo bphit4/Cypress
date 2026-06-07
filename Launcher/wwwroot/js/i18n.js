@@ -123,6 +123,14 @@ function applyDomTranslations() {
         }
     }
 
+    if (typeof updateGameLibrarySection === 'function') updateGameLibrarySection();
+    document.querySelectorAll('.update-btn:not([disabled])').forEach(function(btn) {
+        btn.textContent = t('updates.update_btn');
+    });
+    document.querySelectorAll('.update-dismiss-btn').forEach(function(btn) {
+        btn.textContent = t('updates.later');
+    });
+
     // re-render author hint with now-translated "Translation by" string
     var _loadedMeta = window._i18nStrings && window._i18nStrings['_meta'];
     if (_loadedMeta && _loadedMeta.lang) _updateLangAuthorHint(_loadedMeta.lang);
