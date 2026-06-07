@@ -304,6 +304,8 @@ function clearPlaylistBuilder() {
     plEntryCount = 0;
     document.getElementById('plRoundsPerSetup').value = '1';
     document.getElementById('plMode').value = 'ordered';
+    if (typeof updatePickerTrigger === 'function') updatePickerTrigger('plMode');
+    if (typeof syncPickerSelection === 'function') syncPickerSelection('plMode');
     onPlModeChanged();
     document.getElementById('plMixedModes').value = '';
     document.getElementById('plMixedLevels').value = '';
@@ -327,6 +329,8 @@ function importPlaylistJSON(obj) {
 
     if (obj.IsMixed) {
         document.getElementById('plMode').value = 'mixed';
+        if (typeof updatePickerTrigger === 'function') updatePickerTrigger('plMode');
+        if (typeof syncPickerSelection === 'function') syncPickerSelection('plMode');
         onPlModeChanged();
         if (obj.AvailableModes) document.getElementById('plMixedModes').value = obj.AvailableModes.join(', ');
         // flatten all levels from the map
@@ -343,6 +347,8 @@ function importPlaylistJSON(obj) {
         }
     } else {
         document.getElementById('plMode').value = 'ordered';
+        if (typeof updatePickerTrigger === 'function') updatePickerTrigger('plMode');
+        if (typeof syncPickerSelection === 'function') syncPickerSelection('plMode');
         onPlModeChanged();
         if (obj.PlaylistRotation && obj.PlaylistRotation.length) {
             obj.PlaylistRotation.forEach(function(entry) {

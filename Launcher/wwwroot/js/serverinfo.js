@@ -264,14 +264,16 @@ function onServerInfoResult(data) {
             if (typeof browserPlayerNames === 'undefined') window.browserPlayerNames = {};
             browserPlayerNames[data.address] = data.playerNames;
         }
-        if (data.ping !== undefined) {
+        if (data.ping !== undefined && isFinite(+data.ping)) {
             if (typeof browserPingCache === 'undefined') window.browserPingCache = {};
             browserPingCache[data.address] = data.ping;
+        } else if (typeof browserPingPending !== 'undefined' && browserPingPending[data.address]) {
+            browserPingFailed[data.address] = true;
+            if (typeof filterBrowserList === 'function') filterBrowserList();
         }
-        // patch in-place instead of full rebuild
+        if (typeof browserPingPending !== 'undefined') delete browserPingPending[data.address];
         if (typeof updateBrowserEntryPlayers === 'function') updateBrowserEntryPlayers(data.address);
         if (typeof updateBrowserEntryPing === 'function') updateBrowserEntryPing(data.address);
-        // only full rebuild if level/mode actually changed from what we had before
         var levelChanged = data.level && (!prev || prev.level !== data.level);
         var modeChanged = data.mode && (!prev || prev.mode !== data.mode);
         if ((levelChanged || modeChanged) && typeof filterBrowserList === 'function') filterBrowserList();

@@ -42,6 +42,7 @@ function onTranslationsList(data) {
         if (lang === current) opt.selected = true;
         select.appendChild(opt);
     });
+    if (typeof renderPickerOptions === 'function') renderPickerOptions('languageSelect');
     _updateLangAuthorHint(current);
 }
 

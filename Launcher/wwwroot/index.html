@@ -243,8 +243,18 @@
             </label>
         </div>
         <div class="form-group">
-            <label class="field-label" for="languageSelect" data-i18n="profile.language_label">Language</label>
-            <select id="languageSelect" class="text-input" onchange="onLanguageChanged(this.value)">
+            <label class="field-label" data-i18n="profile.language_label">Language</label>
+            <div class="smart-picker" data-picker-id="languageSelect">
+                <button type="button" class="smart-picker-trigger" id="languageSelectTrigger" onclick="togglePicker('languageSelect')">
+                    <span id="languageSelectTriggerText">English (en-US)</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="smart-picker-panel" id="languageSelectPanel">
+                    <input type="text" id="languageSelectSearch" class="text-input picker-search" placeholder="Filter languages..." data-i18n-placeholder="profile.filter_languages" oninput="filterPickerOptions('languageSelect')">
+                    <div class="smart-picker-options" id="languageSelectOptions"></div>
+                </div>
+            </div>
+            <select id="languageSelect" class="select-input ui-hidden">
                 <option value="en-US">English (en-US)</option>
             </select>
             <span class="field-hint" data-i18n="profile.language_hint">Restart not required. Custom translations can be placed in %AppData%\Cypress\Translations.</span>
@@ -927,7 +937,16 @@
                         </div>
                         <div class="form-group">
                             <label class="field-label" data-i18n="playlist.mode_label">Mode</label>
-                            <select id="plMode" class="select-input" onchange="onPlModeChanged()">
+                            <div class="smart-picker" data-picker-id="plMode">
+                                <button type="button" class="smart-picker-trigger" id="plModeTrigger" onclick="togglePicker('plMode')">
+                                    <span id="plModeTriggerText" data-i18n="playlist.ordered">Ordered Rotation</span>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                                </button>
+                                <div class="smart-picker-panel" id="plModePanel">
+                                    <div class="smart-picker-options" id="plModeOptions"></div>
+                                </div>
+                            </div>
+                            <select id="plMode" class="select-input ui-hidden">
                                 <option value="ordered" data-i18n="playlist.ordered">Ordered Rotation</option>
                                 <option value="mixed" data-i18n="playlist.mixed">Randomized (IsMixed)</option>
                             </select>

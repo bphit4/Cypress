@@ -7,6 +7,8 @@ var browserAutoRefreshTimer = null;
 var browserPlayerCache = {}; // key -> player count from side-channel
 var browserPlayerNames = {}; // key -> array of player names from side-channel
 var browserPingCache = {}; // key -> ping ms from side-channel probe
+var browserPingPending = {}; // key -> true while checkServer is in flight
+var browserPingFailed = {};  // key -> true when checkServer returned with no ping
 var selectedBrowserKey = null; // key of the last-clicked browser entry
 var browserSortAsc = false; // false = descending (default for players)
 var _browserRenderTimer = null; // debounce timer for filterBrowserList
@@ -115,6 +117,8 @@ function onBrowserList(data) {
     // clear live caches so stale entries from dead servers don't persist
     browserPlayerCache = {};
     browserPlayerNames = {};
+    browserPingFailed = {};
+    browserPingPending = {};
     filterBrowserList();
     // lazy-fetch icons and ping for live player counts
     for (var i = 0; i < browserServers.length; i++) {
@@ -130,6 +134,7 @@ function onBrowserList(data) {
             pingData.relayAddress = s.relayAddress;
             pingData.relayKey = s.relayKey;
         }
+        browserPingPending[key] = true;
         send('checkServer', pingData);
     }
 }
@@ -173,6 +178,7 @@ function _filterBrowserListNow() {
         if (moddedFilter === 'modded' && !s.modded) return false;
         if (moddedFilter === 'vanilla' && s.modded) return false;
         var key = s.address + ':' + (s.port || 14638);
+        if (browserPingFailed[key]) return false;
         var playerCount = browserPlayerCache[key] != null ? browserPlayerCache[key] : (s.players || 0);
         if (playerCount < minPlayers) return false;
         if (searchTerm) {

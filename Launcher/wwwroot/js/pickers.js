@@ -26,6 +26,8 @@ registerPicker('browserFilterModded', { type: null, onChange: () => { if (typeof
 registerPicker('srvStartPoint',  { type: null, onChange: null });
 registerPicker('modStartPoint',  { type: null, onChange: null });
 registerPicker('playlistSelect', { type: null, onChange: null });
+registerPicker('languageSelect', { type: null, onChange: () => { const v = document.getElementById('languageSelect')?.value; if (v && typeof onLanguageChanged === 'function') onLanguageChanged(v); } });
+registerPicker('plMode',         { type: null, onChange: () => { if (typeof onPlModeChanged === 'function') onPlModeChanged(); } });
 
 // game bg cache, populated lazily from pre-loaded bgData* img elements
 const GAME_BG_CACHE = {};

@@ -109,13 +109,22 @@ internal static class Program
 			SetupWindowsWindowHooks(window, handler);
 #endif
 
+			foreach (var stale in Directory.GetFiles(AppContext.BaseDirectory, "cypress_launcher_*.html"))
+				try { File.Delete(stale); } catch { }
+
 			string tempHtml = Path.Combine(AppContext.BaseDirectory, "cypress_launcher_" + Guid.NewGuid().ToString("N") + ".html");
-			File.WriteAllText(tempHtml, html, System.Text.Encoding.UTF8);
-			window.Load(tempHtml);
-			window.WaitForClose();
+			try
+			{
+				File.WriteAllText(tempHtml, html, System.Text.Encoding.UTF8);
+				window.Load(tempHtml);
+				window.WaitForClose();
+			}
+			finally
+			{
+				try { File.Delete(tempHtml); } catch { }
+			}
 
 			handler.KillAllInstances();
-			try { File.Delete(tempHtml); } catch { }
 			trayCleanup?.Dispose();
 		}
 		catch (Exception ex)

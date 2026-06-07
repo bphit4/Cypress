@@ -104,6 +104,7 @@
   "profile.language_label": "Language",
   "profile.language_hint": "Restart not required. Custom translations can be placed in %AppData%\\Cypress\\Translations.",
   "profile.translation_by": "Translation by",
+  "profile.filter_languages": "Filter languages...",
   "profile.game_settings_section": "Game Settings",
   "profile.fov_label": "Field of View",
   "profile.launch_args_label": "Launch Arguments",

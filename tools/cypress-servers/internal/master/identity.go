@@ -409,19 +409,8 @@ func (s *masterState) handleAuthRegister(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// check hwid hasn't already registered
-	var existing string
-	err = s.db.QueryRow("SELECT account_id FROM accounts WHERE hwid_hash = ?", hwidHash).Scan(&existing)
-	if err == nil {
-		errResp(w, 409, "This hardware has already registered an account")
-		return
-	}
-
-	// hwid ban check disabled (hash collisions)
-	// err = s.db.QueryRow("SELECT reason FROM global_bans WHERE hwid = ? LIMIT 1", hwidHash).Scan(&banReason)
-	// if err == nil { errResp(w, 403, "Hardware is banned"); return }
-
 	// check username availability
+	var existing string
 	err = s.db.QueryRow("SELECT account_id FROM accounts WHERE username = ?", username).Scan(&existing)
 	if err == nil {
 		errResp(w, 409, "Username already taken")
