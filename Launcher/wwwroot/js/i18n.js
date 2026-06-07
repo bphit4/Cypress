@@ -34,7 +34,7 @@ function onTranslationsList(data) {
     data.langs.forEach(function(item) {
         var lang   = typeof item === 'string' ? item : item.lang;
         var name   = (typeof item === 'object' && item.name)   ? item.name   : lang;
-        var author = (typeof item === 'object' && item.author) ? item.author : '';
+        var author = (typeof item === 'object') ? (item.author || '') : '';
         window._i18nLangMeta[lang] = { name: name, author: author };
         var opt = document.createElement('option');
         opt.value = lang;
@@ -53,11 +53,24 @@ function onLanguageChanged(lang) {
     _updateLangAuthorHint(lang);
 }
 
+function _normalizeLangKey(lang) {
+    if (!lang || lang.indexOf('_') === -1) return lang;
+    var parts = lang.split('_');
+    return parts[0].toLowerCase() + '-' + (/^\d+$/.test(parts[1]) ? parts[1] : parts[1].toUpperCase());
+}
+
+function _formatAuthor(author) {
+    if (!author) return '';
+    if (Array.isArray(author)) return author.join(', ');
+    return String(author);
+}
+
 function _updateLangAuthorHint(lang) {
     var hint = document.getElementById('langAuthorHint');
     if (!hint) return;
-    var cached = window._i18nLangMeta[lang];
-    var author = cached ? cached.author : '';
+    var key = _normalizeLangKey(lang);
+    var cached = window._i18nLangMeta[key] || window._i18nLangMeta[lang];
+    var author = _formatAuthor(cached ? cached.author : '');
     if (author) {
         hint.textContent = t('profile.translation_by') + ' ' + author;
         hint.style.display = '';

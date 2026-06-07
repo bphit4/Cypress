@@ -1,8 +1,8 @@
 ﻿{
   "_meta": {
-    "lang": "es_419",
+    "lang": "es-419",
     "name": "Español (Latinoamérica)",
-    "author": "Mari & KV Future"
+    "author": ["Mari", "KV Future"]
   },
   
   "app.title": "Cypress Launcher",

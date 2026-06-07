@@ -86,8 +86,11 @@ public partial class MessageHandler
                     var j = JObject.Parse(File.ReadAllText(f));
                     var meta = j["_meta"] as JObject;
                     entry["name"] = meta?["name"]?.Value<string>() ?? lang;
-                    string? author = meta?["author"]?.Value<string>();
-                    if (!string.IsNullOrEmpty(author)) entry["author"] = author;
+                    var authorToken = meta?["author"];
+                    if (authorToken is Newtonsoft.Json.Linq.JArray authorArr)
+                        entry["author"] = authorArr;
+                    else if (authorToken?.Value<string>() is string authorStr && !string.IsNullOrEmpty(authorStr))
+                        entry["author"] = authorStr;
                 }
                 catch { entry["name"] = lang; }
                 langs[lang] = entry;
