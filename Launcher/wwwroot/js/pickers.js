@@ -35,7 +35,7 @@ const GAME_BG_CACHE = {};
 function initGameBgCache() {
     if (GAME_BG_CACHE._init) return;
     GAME_BG_CACHE._init = true;
-    ['GW1', 'GW2', 'BFN'].forEach(g => {
+    ['GW1', 'GW2', 'BFN', 'CFB27'].forEach(g => {
         const el = document.getElementById('bgData' + g);
         if (!el) return;
         const src = el.getAttribute('src') || '';

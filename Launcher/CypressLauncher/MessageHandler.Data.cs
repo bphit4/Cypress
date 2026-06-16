@@ -110,7 +110,7 @@ public partial class MessageHandler
 			}
 			catch { }
 		}
-		selectedGame = PVZGame.GW2;
+		selectedGame = PVZGame.CFB27;
 	}
 
 	private void LoadAndSendUserData(string? profileName)
@@ -118,6 +118,7 @@ public partial class MessageHandler
 		string filePath = Path.Combine(GetAppdataDir(), s_launcherSavedataFilename);
 		JObject response = new JObject { ["type"] = "loadUserData" };
 		response["game"] = m_selectedGame.ToString();
+		response["darkMode"] = true;
 		string detectedDeviceIp = TryGetPreferredDeviceIp();
 		if (!string.IsNullOrWhiteSpace(detectedDeviceIp))
 			response["detectedDeviceIP"] = detectedDeviceIp;
@@ -137,8 +138,7 @@ public partial class MessageHandler
 				if (root["Username"] != null) response["username"] = (string?)root["Username"];
 				if (root["FOV"] != null) response["fov"] = (string?)root["FOV"];
 				if (root["AdditionalLaunchArgs"] != null) response["additionalArgs"] = (string?)root["AdditionalLaunchArgs"];
-				if (root["DarkMode"] != null) response["darkMode"] = (bool?)root["DarkMode"] ?? false;
-				if (root["DarkMode"] != null) response["darkMode"] = (bool?)root["DarkMode"] ?? false;
+				if (root["DarkMode"] != null) response["darkMode"] = (bool?)root["DarkMode"] ?? true;
 
 				string name = profileName ?? m_selectedGame.ToString();
 				if (root[name] is JObject profile)

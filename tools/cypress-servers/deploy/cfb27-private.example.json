@@ -1,0 +1,32 @@
+{
+  "profile": "cfb27-private",
+  "publicHost": "YOUR_VPS_OR_VM_IP",
+  "tlsMode": "reverse-proxy",
+  "serverSecret": "replace-with-a-long-random-secret",
+  "paths": {
+    "dataDir": "C:\\Cypress\\cfb27-private",
+    "masterDb": "C:\\Cypress\\cfb27-private\\cypress_master.db",
+    "relayLeaseFile": "C:\\Cypress\\cfb27-private\\relay_leases.json",
+    "relayLogFile": "C:\\Cypress\\cfb27-private\\relay.log",
+    "dynastyDb": "C:\\Cypress\\cfb27-private\\cfb27_dynasty.db",
+    "dynastySchemaRoot": "C:\\Users\\Shadow\\Desktop\\CFB27\\Dynasty_Files"
+  },
+  "master": {
+    "bind": "0.0.0.0",
+    "port": 27900,
+    "behindProxy": true
+  },
+  "relay": {
+    "bind": "0.0.0.0",
+    "port": 25201,
+    "apiBind": "0.0.0.0",
+    "apiPort": 8080,
+    "relayHost": "YOUR_VPS_OR_VM_IP",
+    "serverTimeoutSeconds": 90,
+    "clientTimeoutSeconds": 180
+  },
+  "dynasty": {
+    "bind": "0.0.0.0",
+    "port": 27910
+  }
+}

@@ -50,7 +50,8 @@ const instanceLabels = {};  // pid -> string (persisted name)
 const GAME_ICONS = {
     GW1: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 3c-2 3-3 6-3 9s1 6 3 9"/><path d="M12 3c2 3 3 6 3 9s-1 6-3 9"/><line x1="3" y1="12" x2="21" y2="12"/></svg>',
     GW2: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 3c-2 3-3 6-3 9s1 6 3 9"/><path d="M12 3c2 3 3 6 3 9s-1 6-3 9"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>',
-    BFN: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>'
+    BFN: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>',
+    CFB27: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 5h12v14H6z"/><path d="M9 5v14"/><path d="M15 5v14"/><path d="M6 9h12"/><path d="M6 15h12"/></svg>'
 };
 
 const SVG_ICONS = {
@@ -66,11 +67,11 @@ const SVG_ICONS = {
 };
 
 function getGameLabel(g) {
-    return { GW1: 'GW1', GW2: 'GW2', BFN: 'BFN' }[g] || g;
+    return { GW1: 'GW1', GW2: 'GW2', BFN: 'BFN', CFB27: 'CFB 27' }[g] || g;
 }
 
 function supportsFreecam(game) {
-    return game === 'GW1' || game === 'GW2' || game === 'BFN';
+    return game === 'GW1' || game === 'GW2' || game === 'BFN' || game === 'CFB27';
 }
 
 // check if user has moderator access to a client instance (local mod or global mod override)

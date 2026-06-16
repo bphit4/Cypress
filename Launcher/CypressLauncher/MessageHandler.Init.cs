@@ -226,6 +226,7 @@ public partial class MessageHandler
 			PVZGame.GW1 => "Plants vs Zombies Garden Warfare",
 			PVZGame.GW2 => "Plants vs. Zombies Garden Warfare 2",
 			PVZGame.BFN => "Plants vs. Zombies Battle for Neighborville",
+			PVZGame.CFB27 => "EA SPORTS COLLEGE FOOTBALL 27 - EXTERNAL BETA (CTRE)",
 			_ => ""
 		};
 		foreach (string basePath in searchPaths)
@@ -258,6 +259,12 @@ public partial class MessageHandler
 				&& File.Exists(Path.Combine(path, s_gameToExecutableName[m_selectedGame])))
 				return path;
 		}
+		if (m_selectedGame == PVZGame.CFB27)
+		{
+			string cfb27Path = @"C:\Program Files\EA Games\EA SPORTS COLLEGE FOOTBALL 27 - EXTERNAL BETA (CTRE)";
+			if (Directory.Exists(cfb27Path) && File.Exists(Path.Combine(cfb27Path, s_gameToExecutableName[m_selectedGame])))
+				return cfb27Path;
+		}
 		return null;
 	}
 #endif
@@ -277,6 +284,7 @@ public partial class MessageHandler
 			PVZGame.GW1 => "Plants vs Zombies Garden Warfare",
 			PVZGame.GW2 => "Plants vs. Zombies Garden Warfare 2",
 			PVZGame.BFN => "Plants vs. Zombies Battle for Neighborville",
+			PVZGame.CFB27 => "EA SPORTS COLLEGE FOOTBALL 27 - EXTERNAL BETA (CTRE)",
 			_ => ""
 		};
 
@@ -319,6 +327,17 @@ public partial class MessageHandler
 				m_gameDirectory = path;
 				Send(new JObject { ["type"] = "gameDir", ["path"] = path });
 				SendStatus($"Found directory for {m_selectedGame}: {path}", "success");
+				return;
+			}
+		}
+		if (m_selectedGame == PVZGame.CFB27)
+		{
+			string cfb27Path = @"C:\Program Files\EA Games\EA SPORTS COLLEGE FOOTBALL 27 - EXTERNAL BETA (CTRE)";
+			if (Directory.Exists(cfb27Path) && File.Exists(Path.Combine(cfb27Path, s_gameToExecutableName[m_selectedGame])))
+			{
+				m_gameDirectory = cfb27Path;
+				Send(new JObject { ["type"] = "gameDir", ["path"] = cfb27Path });
+				SendStatus($"Found directory for {m_selectedGame}: {cfb27Path}", "success");
 				return;
 			}
 		}

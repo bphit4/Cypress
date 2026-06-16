@@ -19,7 +19,8 @@ public partial class MessageHandler
 	{
 		GW1,
 		GW2,
-		BFN
+		BFN,
+		CFB27
 	}
 
 	private static readonly string s_destDLLName = "dinput8.dll";
@@ -37,7 +38,8 @@ public partial class MessageHandler
 	{
 		{ PVZGame.GW1, "PVZ.Main_Win64_Retail.exe" },
 		{ PVZGame.GW2, "GW2.Main_Win64_Retail.exe" },
-		{ PVZGame.BFN, "PVZBattleforNeighborville.exe" }
+		{ PVZGame.BFN, "PVZBattleforNeighborville.exe" },
+		{ PVZGame.CFB27, "CollegeFB27.exe" }
 	};
 
 	internal static readonly Dictionary<PVZGame, string> s_gameToPatchedExecutableName = new()
@@ -50,28 +52,33 @@ public partial class MessageHandler
 	{
 		{ PVZGame.GW1, "Garden Warfare 1" },
 		{ PVZGame.GW2, "Garden Warfare 2" },
-		{ PVZGame.BFN, "Battle for Neighborville" }
+		{ PVZGame.BFN, "Battle for Neighborville" },
+		{ PVZGame.CFB27, "EA Sports College Football 27" }
 	};
 
 	private static readonly Dictionary<PVZGame, string> s_specialLaunchArgsForGame = new()
 	{
 		{ PVZGame.GW1, "-GameTime.MaxSimFps -1" },
 		{ PVZGame.GW2, "-GameMode.SkipIntroHubNIS true" },
-		{ PVZGame.BFN, "-GameMode.ShouldSkipHUBTutorial 1 -GameMode.SocialHUBSkipStationTutorials 1 " }
+		{ PVZGame.BFN, "-GameMode.ShouldSkipHUBTutorial 1 -GameMode.SocialHUBSkipStationTutorials 1 " },
+		{ PVZGame.CFB27, "" }
 	};
 
 	private static readonly Dictionary<PVZGame, string> s_serverLaunchArgsForGame = new()
 	{
 		{ PVZGame.GW1, "-Online.ClientIsPresenceEnabled false -Online.ServerIsPresenceEnabled false -Online.Backend Backend_Peer -Online.PeerBackend Backend_Peer -Server.IsRanked false -Game.Platform GamePlatform_Win32 -SyncedBFSettings.AllUnlocksUnlocked true -PingSite ams -name \"PVZGW Dedicated Server\"  " },
 		{ PVZGame.GW2, "-enableServerLog -platform Win32 -console -Game.Platform GamePlatform_Win32 -Game.EnableServerLog true -GameMode.SkipIntroHubNIS true -Online.Backend Backend_Local -Online.PeerBackend Backend_Local -PVZServer.MapSequencerEnabled false " },
-		{ PVZGame.BFN, "-Online.ClientIsPresenceEnabled 0 -Online.ServerIsPresenceEnabled 0 -Game.Platform GamePlatform_Win32 -allUnlocksUnlocked -GameMode.OverrideRoundStartPlayerCount 1 -Online.Backend Backend_Local -Online.PeerBackend Backend_Local -PVZServer.MapSequencerEnabled false " }
+		{ PVZGame.BFN, "-Online.ClientIsPresenceEnabled 0 -Online.ServerIsPresenceEnabled 0 -Game.Platform GamePlatform_Win32 -allUnlocksUnlocked -GameMode.OverrideRoundStartPlayerCount 1 -Online.Backend Backend_Local -Online.PeerBackend Backend_Local -PVZServer.MapSequencerEnabled false " },
+		{ PVZGame.CFB27, "-Online.Backend Backend_Local -Online.PeerBackend Backend_Local -Game.Platform GamePlatform_Win32 " }
 	};
 
-	private PVZGame m_selectedGame = PVZGame.GW2;
+	private PVZGame m_selectedGame = PVZGame.CFB27;
 	private string m_gameDirectory = string.Empty;
 
 	private static string GetServerDataDir(PVZGame game) =>
 		Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Cypress", "ServerData", game.ToString());
+
+	private static bool IsCFB27(PVZGame game) => game == PVZGame.CFB27;
 
 	private static string GetUnifiedBanlistPath()
 	{
@@ -181,6 +188,8 @@ public partial class MessageHandler
 
 	private void SendStatus(string text, string level = "info")
 	{
+		if (IsCFB27(m_selectedGame))
+			RecordCFB27Event($"status[{level}] {text}");
 		Send(new JObject { ["type"] = "status", ["text"] = text, ["level"] = level });
 	}
 
@@ -249,6 +258,15 @@ public partial class MessageHandler
 					break;
 				case "startServer":
 					OnStartServer(msg);
+					break;
+				case "cfb27Diagnostics":
+					OnCFB27Diagnostics();
+					break;
+				case "cfb27CaptureSnapshot":
+					OnCFB27CaptureSnapshot(msg);
+					break;
+				case "cfb27OpenEvidenceFolder":
+					OnCFB27OpenEvidenceFolder();
 					break;
 				case "openExternal":
 					OnOpenExternal((string?)msg["url"]);

@@ -1372,4 +1372,15 @@ const GAME_DATA = {
         ],
         hasHostedMode: false,
     },
+    CFB27: {
+        levels: [
+            { id: 'CFB27_Dynasty', name: 'Online Dynasty', cat: 'Dynasty', modes: ['OnlineDynasty'] },
+        ],
+        modes: [
+            { id: 'OnlineDynasty', name: 'Online Dynasty', cat: 'Dynasty' },
+        ],
+        modifierCategories: [],
+        startPoints: [],
+        hasHostedMode: false,
+    },
 };

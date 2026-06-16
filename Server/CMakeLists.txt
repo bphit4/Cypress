@@ -63,18 +63,26 @@ FetchContent_MakeAvailable(
 option(CYPRESS_GW1 "Build GW1 version" OFF)
 option(CYPRESS_GW2 "Build GW2 version" OFF)
 option(CYPRESS_BFN "Build BFN version" OFF)
+option(CYPRESS_CFB27 "Build CFB27 version" OFF)
 
 # Default fallback
-if(NOT CYPRESS_GW1 AND NOT CYPRESS_GW2 AND NOT CYPRESS_BFN)
+if(NOT CYPRESS_GW1 AND NOT CYPRESS_GW2 AND NOT CYPRESS_BFN AND NOT CYPRESS_CFB27)
   set(CYPRESS_GW2 ON)
 endif()
 
 # Sources
-file(GLOB_RECURSE SOURCES
-        dllmain.cpp
-        Source/*.cpp
-        include/*.cpp
-)
+if(CYPRESS_CFB27)
+  set(SOURCES
+          dllmain.cpp
+          pch.cpp
+  )
+else()
+  file(GLOB_RECURSE SOURCES
+          dllmain.cpp
+          Source/*.cpp
+          include/*.cpp
+  )
+endif()
 
 add_library(Cypress SHARED ${SOURCES})
 
@@ -106,6 +114,7 @@ target_compile_definitions(Cypress PUBLIC
         _CRT_SECURE_NO_WARNINGS
         _WINDOWS
         _USRDLL
+        $<$<BOOL:${CYPRESS_CFB27}>:CYPRESS_GAME_NAME="CFB27">
 )
 
 # EA Defines
@@ -116,7 +125,7 @@ add_compile_definitions(
         EASTLAllocatorDefault=fb::GetDefaultAllocator
 )
 
-if(CYPRESS_GW1 OR CYPRESS_GW2)
+if(CYPRESS_GW1 OR CYPRESS_GW2 OR CYPRESS_CFB27)
   add_compile_definitions(CHAR8_T_DEFINED)
 endif()
 
@@ -124,6 +133,8 @@ if(CYPRESS_GW1)
   set(EA_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/External/EA_GW")
 elseif(CYPRESS_GW2)
   set(EA_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/External/EA_GW2")
+elseif(CYPRESS_CFB27)
+  set(EA_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/External/EA_BFN")
 else()
   set(EA_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/External/EA_BFN")
 endif()
@@ -143,6 +154,9 @@ elseif(CYPRESS_GW2)
 elseif(CYPRESS_BFN)
   target_compile_definitions(Cypress PRIVATE CYPRESS_BFN)
   set_target_properties(Cypress PROPERTIES OUTPUT_NAME "cypress_BFN")
+elseif(CYPRESS_CFB27)
+  target_compile_definitions(Cypress PRIVATE CYPRESS_CFB27)
+  set_target_properties(Cypress PROPERTIES OUTPUT_NAME "cypress_CFB27")
 endif()
 
 # MSVC specifics

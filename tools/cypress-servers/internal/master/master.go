@@ -1,4 +1,4 @@
-﻿package master
+package master
 
 import (
 	"crypto/ed25519"
@@ -21,7 +21,7 @@ import (
 
 	"cypress-servers/internal/ea"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 // config
@@ -129,6 +129,11 @@ type serverEntry struct {
 	VpnType       string    `json:"vpnType,omitempty"`
 	VpnNetwork    string    `json:"vpnNetwork,omitempty"`
 	VpnPassword   string    `json:"vpnPassword,omitempty"`
+	DynastyMode   string    `json:"dynastyMode,omitempty"`
+	LeagueName    string    `json:"leagueName,omitempty"`
+	CurrentStage  string    `json:"currentStage,omitempty"`
+	TeamCount     int       `json:"teamCount,omitempty"`
+	RosterModded  bool      `json:"rosterModded,omitempty"`
 	HeartbeatIP   string    `json:"-"`
 	LastHeartbeat time.Time `json:"-"`
 }
@@ -183,7 +188,26 @@ func (s *serverEntry) toLite() map[string]any {
 		d["vpnNetwork"] = s.VpnNetwork
 		d["vpnPassword"] = s.VpnPassword
 	}
+	if s.DynastyMode != "" {
+		d["dynastyMode"] = s.DynastyMode
+	}
+	if s.LeagueName != "" {
+		d["leagueName"] = s.LeagueName
+	}
+	if s.CurrentStage != "" {
+		d["currentStage"] = s.CurrentStage
+	}
+	if s.TeamCount > 0 {
+		d["teamCount"] = s.TeamCount
+	}
+	if s.RosterModded {
+		d["rosterModded"] = true
+	}
 	return d
+}
+
+func isSupportedGame(game string) bool {
+	return game == "GW1" || game == "GW2" || game == "BFN" || game == "CFB27"
 }
 
 // master state
@@ -344,7 +368,7 @@ func getOrCreateSecret(path string) (string, error) {
 // database
 
 func initDB(path string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL&_busy_timeout=5000")
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)")
 	if err != nil {
 		return nil, err
 	}
@@ -596,7 +620,7 @@ func (s *masterState) handleHeartbeat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	game := getString(data, "game")
-	if game != "GW1" && game != "GW2" && game != "BFN" {
+	if !isSupportedGame(game) {
 		errResp(w, 400, "Invalid game")
 		return
 	}
@@ -648,6 +672,11 @@ func (s *masterState) handleHeartbeat(w http.ResponseWriter, r *http.Request) {
 		existing.VpnType = truncStr(getString(data, "vpnType"), 64)
 		existing.VpnNetwork = truncStr(getString(data, "vpnNetwork"), 128)
 		existing.VpnPassword = truncStr(getString(data, "vpnPassword"), 128)
+		existing.DynastyMode = truncStr(getString(data, "dynastyMode"), 64)
+		existing.LeagueName = truncStr(getString(data, "leagueName"), 128)
+		existing.CurrentStage = truncStr(getString(data, "currentStage"), 128)
+		existing.TeamCount = clampInt(getInt(data, "teamCount", existing.TeamCount), 0, 256)
+		existing.RosterModded = getBool(data, "rosterModded")
 		existing.HeartbeatIP = ip
 		existing.LastHeartbeat = time.Now()
 
@@ -694,6 +723,11 @@ func (s *masterState) handleHeartbeat(w http.ResponseWriter, r *http.Request) {
 		VpnType:       truncStr(getString(data, "vpnType"), 64),
 		VpnNetwork:    truncStr(getString(data, "vpnNetwork"), 128),
 		VpnPassword:   truncStr(getString(data, "vpnPassword"), 128),
+		DynastyMode:   truncStr(getString(data, "dynastyMode"), 64),
+		LeagueName:    truncStr(getString(data, "leagueName"), 128),
+		CurrentStage:  truncStr(getString(data, "currentStage"), 128),
+		TeamCount:     clampInt(getInt(data, "teamCount", 0), 0, 256),
+		RosterModded:  getBool(data, "rosterModded"),
 		HeartbeatIP:   ip,
 		LastHeartbeat: time.Now(),
 	}

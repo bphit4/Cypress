@@ -35,7 +35,7 @@ var GAME_ICON_SRC = {};
 function getGameIconSrc(game) {
     if (!GAME_ICON_SRC._init) {
         GAME_ICON_SRC._init = true;
-        ['GW1', 'GW2', 'BFN'].forEach(function(g) {
+        ['GW1', 'GW2', 'BFN', 'CFB27'].forEach(function(g) {
             var el = document.getElementById('iconData' + g);
             if (el) GAME_ICON_SRC[g] = el.getAttribute('src') || '';
         });

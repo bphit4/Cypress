@@ -101,6 +101,54 @@ function startServer() {
     doStartServer();
 }
 
+function runCFB27Diagnostics() {
+    if (typeof getGame === 'function' && getGame() !== 'CFB27') {
+        showStatus('Select CFB27 before running diagnostics.', 'error');
+        return;
+    }
+    showStatus('Starting local CFB27 diagnostics...', 'info');
+    send('cfb27Diagnostics', {});
+}
+
+function onCFB27DiagnosticsResult(data) {
+    if (data.ok) {
+        showStatus('CFB27 diagnostics passed: local master accepted the heartbeat.', 'success');
+        if (data.services && data.services.evidencePath) setCFB27EvidencePath(data.services.evidencePath);
+    } else {
+        showStatus('CFB27 diagnostics failed: ' + (data.error || data.heartbeatResponse || 'unknown error'), 'error');
+    }
+}
+
+function captureCFB27Snapshot() {
+    if (typeof getGame === 'function' && getGame() !== 'CFB27') {
+        showStatus('Select CFB27 before capturing evidence.', 'error');
+        return;
+    }
+    showStatus('Capturing CFB27 discovery snapshot...', 'info');
+    send('cfb27CaptureSnapshot', { scenario: 'manual launcher snapshot' });
+}
+
+function openCFB27EvidenceFolder() {
+    send('cfb27OpenEvidenceFolder', {});
+}
+
+function onCFB27CaptureResult(data) {
+    if (data.ok) {
+        setCFB27EvidencePath(data.path || '');
+        showStatus('CFB27 evidence captured: ' + (data.path || data.runId), 'success');
+    } else {
+        if (data.path) setCFB27EvidencePath(data.path);
+        showStatus('CFB27 evidence capture failed: ' + (data.error || 'unknown error'), 'error');
+    }
+}
+
+function setCFB27EvidencePath(path) {
+    var el = document.getElementById('cfb27EvidencePath');
+    if (!el) return;
+    el.style.display = path ? '' : 'none';
+    el.textContent = path ? ('Latest evidence: ' + path) : '';
+}
+
 function doStartServer() {
     const argsField = document.getElementById('serverArgsPreview');
     const serverArgs = argsField ? argsField.value : '';

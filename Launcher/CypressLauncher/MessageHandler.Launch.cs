@@ -70,7 +70,7 @@ public partial class MessageHandler
 
 		string exeName = s_gameToExecutableName[m_selectedGame];
 		bool failed = false;
-		if (GameRequiresPatchedExe(Path.Combine(m_gameDirectory, exeName), ref failed) && !failed)
+		if (!IsCFB27(m_selectedGame) && GameRequiresPatchedExe(Path.Combine(m_gameDirectory, exeName), ref failed) && !failed)
 		{
 			string patchedExeName = s_gameToPatchedExecutableName[m_selectedGame];
 			if (!PatchManager.EnsurePatched(m_selectedGame, m_gameDirectory, exeName, patchedExeName, SendStatus))
@@ -79,17 +79,7 @@ public partial class MessageHandler
 		}
 		if (failed) return;
 
-		Environment.SetEnvironmentVariable("EARtPLaunchCode", GetRtPLaunchCode().ToString());
-
-		string contentId = "0";
-		if (m_selectedGame == PVZGame.GW1)
-			contentId = "1011216";
-		else if (m_selectedGame == PVZGame.GW2)
-			contentId = "1026482";
-		else if (m_selectedGame == PVZGame.BFN)
-			contentId = "1036445";
-
-		Environment.SetEnvironmentVariable("ContentId", contentId);
+		ConfigureEaRuntimeEnvironment(m_selectedGame);
 
 		bool useMod = useMods && !string.IsNullOrEmpty(modPack);
 		Environment.SetEnvironmentVariable("GAME_DATA_DIR", useMod ? Path.Combine(m_gameDirectory, "ModData", modPack) : null);
@@ -106,10 +96,12 @@ public partial class MessageHandler
 
 		// use nickname as in-game name if set, otherwise use the username field
 		string inGameName = !string.IsNullOrWhiteSpace(m_identityNickname) ? m_identityNickname : username;
-		string launchArgs = $"-playerName \"{inGameName}\" -console -Client.ServerIp {serverIPWithPort} -allowMultipleInstances -RenderDevice.IntelMinDriverVersion 0.0";
+		string launchArgs = IsCFB27(m_selectedGame)
+			? BuildCFB27ClientLaunchArgs(inGameName, serverIPWithPort)
+			: $"-playerName \"{inGameName}\" -console -Client.ServerIp {serverIPWithPort} -allowMultipleInstances -RenderDevice.IntelMinDriverVersion 0.0";
 		if (!string.IsNullOrWhiteSpace(serverPassword))
 			launchArgs += " -password " + serverPassword;
-		if (s_specialLaunchArgsForGame.TryGetValue(m_selectedGame, out string? specialArgs))
+		if (!IsCFB27(m_selectedGame) && s_specialLaunchArgsForGame.TryGetValue(m_selectedGame, out string? specialArgs))
 			launchArgs += " " + specialArgs;
 		if (useMod && m_selectedGame == PVZGame.BFN)
 			launchArgs += " -datapath \"" + Path.Combine(m_gameDirectory, "ModData", modPack) + "\"";
@@ -185,12 +177,13 @@ public partial class MessageHandler
 			SendStatus("Device IP must be a valid IPv4 address.", "error");
 			return;
 		}
-		if (string.IsNullOrWhiteSpace(level))
+		bool isCFB27 = IsCFB27(m_selectedGame);
+		if (!isCFB27 && string.IsNullOrWhiteSpace(level))
 		{
 			SendStatus("Level not set.", "error");
 			return;
 		}
-		if (string.IsNullOrWhiteSpace(inclusion))
+		if (!isCFB27 && string.IsNullOrWhiteSpace(inclusion))
 		{
 			SendStatus("Level's Inclusion not set.", "error");
 			return;
@@ -200,7 +193,7 @@ public partial class MessageHandler
 
 		string exeName = s_gameToExecutableName[m_selectedGame];
 		bool failed = false;
-		if (GameRequiresPatchedExe(Path.Combine(m_gameDirectory, exeName), ref failed) && !failed)
+		if (!isCFB27 && GameRequiresPatchedExe(Path.Combine(m_gameDirectory, exeName), ref failed) && !failed)
 		{
 			string patchedExeName = s_gameToPatchedExecutableName[m_selectedGame];
 			if (!PatchManager.EnsurePatched(m_selectedGame, m_gameDirectory, exeName, patchedExeName, SendStatus))
@@ -209,24 +202,23 @@ public partial class MessageHandler
 		}
 		if (failed) return;
 
-		Environment.SetEnvironmentVariable("EARtPLaunchCode", GetRtPLaunchCode().ToString());
-
-		string contentId = "0";
-		if (m_selectedGame == PVZGame.GW1)
-			contentId = "1011216";
-		else if (m_selectedGame == PVZGame.GW2)
-			contentId = "1026482";
-		else if (m_selectedGame == PVZGame.BFN)
-			contentId = "1036445";
-
-		Environment.SetEnvironmentVariable("ContentId", contentId);
+		ConfigureEaRuntimeEnvironment(m_selectedGame);
 
 		bool useMod = useMods && !string.IsNullOrEmpty(modPack);
 		Environment.SetEnvironmentVariable("GAME_DATA_DIR", useMod ? Path.Combine(m_gameDirectory, "ModData", modPack) : null);
 		bool playlistFlag = usePlaylist && !string.IsNullOrEmpty(playlist);
 
 		string launchArgs;
-		if (m_selectedGame < PVZGame.BFN)
+		if (isCFB27)
+		{
+			string sessionName = ((string?)msg["serverName"]) ?? "CFB27 Dynasty";
+			launchArgs = BuildCFB27ServerLaunchArgs(deviceIP, sessionName);
+			if (!string.IsNullOrWhiteSpace(serverAdditionalArgs))
+				launchArgs += " " + serverAdditionalArgs;
+			if (!string.IsNullOrWhiteSpace(playerCount))
+				launchArgs += " -Network.MaxClientCount " + playerCount;
+		}
+		else if (m_selectedGame < PVZGame.BFN)
 		{
 			launchArgs = $"-server -level {level} -listen {deviceIP} -inclusion {inclusion} -allowMultipleInstances -Network.ServerAddress {deviceIP}";
 			if (!string.IsNullOrWhiteSpace(loadScreenGameMode))
@@ -304,6 +296,25 @@ public partial class MessageHandler
 			SendStatus("Failed to copy DLL: " + ex.Message, "error");
 			return false;
 		}
+	}
+
+	private void ConfigureEaRuntimeEnvironment(PVZGame game)
+	{
+		if (game == PVZGame.CFB27)
+		{
+			Environment.SetEnvironmentVariable("EARtPLaunchCode", null);
+			Environment.SetEnvironmentVariable("ContentId", null);
+			return;
+		}
+
+		Environment.SetEnvironmentVariable("EARtPLaunchCode", GetRtPLaunchCode().ToString());
+		Environment.SetEnvironmentVariable("ContentId", game switch
+		{
+			PVZGame.GW1 => "1011216",
+			PVZGame.GW2 => "1026482",
+			PVZGame.BFN => "1036445",
+			_ => null
+		});
 	}
 
 	private bool TryCopyDllElevated(string src, string dest)
@@ -440,7 +451,7 @@ public partial class MessageHandler
 
 	private void LaunchGame(string exeName, string args, bool isServer = false, string level = "", JObject? msg = null)
 	{
-		string workingDir = isServer
+		string workingDir = isServer && !IsCFB27(m_selectedGame)
 			? GetServerDataDir(m_selectedGame)
 			: m_gameDirectory;
 		if (isServer) Directory.CreateDirectory(workingDir);
@@ -457,10 +468,20 @@ public partial class MessageHandler
 			StandardOutputEncoding = Encoding.UTF8,
 			CreateNoWindow = true
 		};
+		string game = m_selectedGame.ToString();
+		PVZGame capturedGame = m_selectedGame;
+		bool launchedIsCFB27 = IsCFB27(capturedGame);
 		startInfo.Environment["CYPRESS_EMBEDDED"] = "1";
 		bool emancipated = (bool)(msg?["emancipated"] ?? false);
 		if (!emancipated)
 			startInfo.Environment["CYPRESS_MASTER_URL"] = MASTER_SERVER_URL;
+		if (launchedIsCFB27)
+		{
+			startInfo.Environment["CYPRESS_CFB27_DISCOVERY"] = "1";
+			startInfo.Environment["CYPRESS_CFB27_LAUNCH_ARGS"] = args;
+			startInfo.Environment["CYPRESS_CFB27_DYNASTY_URL"] = "http://127.0.0.1:27910";
+			startInfo.Environment["CYPRESS_CFB27_DYNASTY_PROFILE"] = ((string?)msg?["dynastyProfile"]) ?? "default";
+		}
 
 		int sideChannelPort = 14638;
 		if (isServer)
@@ -507,8 +528,6 @@ public partial class MessageHandler
 		SetGpuPreferenceHighPerformance(startInfo.FileName);
 #endif
 		var process = new Process { StartInfo = startInfo };
-		string game = m_selectedGame.ToString();
-		PVZGame capturedGame = m_selectedGame;
 		string capturedGameDir = m_gameDirectory;
 
 		try
@@ -535,6 +554,8 @@ public partial class MessageHandler
 				try
 				{
 					Send(new JObject { ["type"] = "instanceOutput", ["pid"] = pid, ["line"] = line });
+					if (launchedIsCFB27)
+						RecordCFB27Event($"pid={pid} {line}");
 					// track player count for heartbeat + global ban check
 					if (isServer && line.StartsWith('{'))
 					{
@@ -581,16 +602,7 @@ public partial class MessageHandler
 				}
 
 				Environment.SetEnvironmentVariable("EARtPLaunchCode", null);
-
-				string contentId = "0";
-				if (capturedGame == PVZGame.GW1)
-					contentId = "1011216";
-				else if (capturedGame == PVZGame.GW2)
-					contentId = "1026482";
-				else if (capturedGame == PVZGame.BFN)
-					contentId = "1036445";
-
-				Environment.SetEnvironmentVariable("ContentId", contentId);
+				Environment.SetEnvironmentVariable("ContentId", null);
 
 				Environment.SetEnvironmentVariable("GW_LAUNCH_ARGS", null);
 				Environment.SetEnvironmentVariable("CYPRESS_IDENTITY_JWT", null);
@@ -655,6 +667,15 @@ public partial class MessageHandler
 			string username = ((string?)msg?["username"]) ?? "";
 			if (!string.IsNullOrEmpty(username)) instanceMsg["username"] = username;
 		}
+		if (launchedIsCFB27)
+		{
+			instanceMsg["launchArgs"] = args;
+			instanceMsg["masterUrl"] = emancipated ? "" : MASTER_SERVER_URL;
+			instanceMsg["dynastyUrl"] = "http://127.0.0.1:27910";
+			instanceMsg["sideChannelPort"] = isServer ? sideChannelPort : 0;
+			instanceMsg["dynastyProfile"] = ((string?)msg?["dynastyProfile"]) ?? "default";
+			SendStatus("CFB27 discovery launch args: " + args, "info");
+		}
 
 		Send(instanceMsg);
 		SendStatus($"Game launched (PID {instance.Pid})", "success");
@@ -692,7 +713,7 @@ public partial class MessageHandler
 					["port"] = actualPort,
 					["game"] = game,
 					["maxPlayers"] = int.TryParse(((string?)msg?["playerCount"]) ?? "", out var mp) ? mp : 24,
-					["level"] = level,
+					["level"] = launchedIsCFB27 ? "CFB27_Dynasty" : level,
 					["gamePort"] = serverGamePort,
 				};
 				string inclusion = ((string?)msg?["inclusion"]) ?? "";
@@ -704,11 +725,21 @@ public partial class MessageHandler
 						.Where(kv => kv.Length == 2 && kv[0] == "GameMode")
 						.Select(kv => kv[1])
 						.FirstOrDefault();
-					if (!string.IsNullOrEmpty(modeId))
-						heartbeatData["mode"] = modeId;
-					else
-						heartbeatData["mode"] = inclusion;
-				}
+				if (!string.IsNullOrEmpty(modeId))
+					heartbeatData["mode"] = modeId;
+				else
+					heartbeatData["mode"] = inclusion;
+			}
+			if (launchedIsCFB27)
+			{
+				heartbeatData["mode"] = "Online Dynasty";
+				heartbeatData["dynastyMode"] = "Online Dynasty";
+				heartbeatData["leagueName"] = string.IsNullOrWhiteSpace(serverName) ? "CFB27 Dynasty" : serverName;
+				heartbeatData["currentStage"] = "Preseason";
+				if (int.TryParse(((string?)msg?["playerCount"]) ?? "", out var teams))
+					heartbeatData["teamCount"] = teams;
+				if (useMods) heartbeatData["rosterModded"] = true;
+			}
 				if (!string.IsNullOrEmpty(serverName)) heartbeatData["motd"] = serverName;
 				if (!string.IsNullOrEmpty(serverIcon)) heartbeatData["icon"] = serverIcon;
 				if (useMods) heartbeatData["modded"] = true;
@@ -740,6 +771,16 @@ public partial class MessageHandler
 					StartHeartbeat(heartbeatData, launchedPid);
 			});
 		}
+	}
+
+	private static string BuildCFB27ClientLaunchArgs(string playerName, string serverAddress)
+	{
+		return $"-playerName \"{playerName}\" -console -Client.ServerIp {serverAddress} -allowMultipleInstances -Online.Backend Backend_Local -Online.PeerBackend Backend_Local -Game.Platform GamePlatform_Win32";
+	}
+
+	private static string BuildCFB27ServerLaunchArgs(string deviceIP, string sessionName)
+	{
+		return $"-listen {deviceIP} -allowMultipleInstances -Network.ServerAddress {deviceIP} -Online.Backend Backend_Local -Online.PeerBackend Backend_Local -Game.Platform GamePlatform_Win32 -name \"{sessionName}\"";
 	}
 
 #if WINDOWS

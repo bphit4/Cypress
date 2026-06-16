@@ -22,6 +22,8 @@
 #include <GameModules/GW2Module.h>
 #elif defined(CYPRESS_BFN)
 #include <GameModules/BFNModule.h>
+#elif defined(CYPRESS_CFB27)
+#include <GameModules/CFB27Module.h>
 #endif
 
 #include <fb/Engine/ExecutionContext.h>
@@ -207,6 +209,8 @@ namespace Cypress
 		m_gameModule = new GW2Module();
 #elif defined(CYPRESS_BFN)
 		m_gameModule = new BFNModule();
+#elif defined(CYPRESS_CFB27)
+		m_gameModule = new CFB27Module();
 #endif
 
 #if(HAS_DEDICATED_SERVER)

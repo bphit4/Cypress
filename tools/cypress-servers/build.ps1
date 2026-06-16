@@ -5,6 +5,8 @@ Write-Host "building master server..."
 go build -o build/master.exe ./cmd/master
 Write-Host "building relay server..."
 go build -o build/relay.exe ./cmd/relay
+Write-Host "building dynasty service..."
+go build -o build/dynasty.exe ./cmd/dynasty
 
 Write-Host "done. binaries in build/"
 Pop-Location

@@ -92,7 +92,8 @@ function getGameLabels() {
     return {
         'GW1': t('game.gw1'),
         'GW2': t('game.gw2'),
-        'BFN': t('game.bfn')
+        'BFN': t('game.bfn'),
+        'CFB27': t('game.cfb27')
     };
 }
 
@@ -126,7 +127,8 @@ function getGameInfo() {
     return {
         'GW1': { title: t('game.gw1') },
         'GW2': { title: t('game.gw2') },
-        'BFN': { title: t('game.bfn') }
+        'BFN': { title: t('game.bfn') },
+        'CFB27': { title: t('game.cfb27') }
     };
 }
 
@@ -159,6 +161,7 @@ function onGameChanged() {
     const game = getGame();
     const isBFN = game === 'BFN';
     const isGW1 = game === 'GW1';
+    const isCFB27 = game === 'CFB27';
     var fovGroup = document.getElementById('fovGroup');
     if (fovGroup) fovGroup.style.display = isGW1 ? 'none' : '';
     document.getElementById('username').maxLength = isBFN ? 16 : 32;
@@ -176,6 +179,17 @@ function onGameChanged() {
     document.getElementById('startPointValueGroup').style.display = isBFN ? '' : 'none';
     document.getElementById('variantGroup').style.display = isGW1 ? '' : 'none';
     document.getElementById('levelPickerLabel').textContent = isBFN ? t('tabs.dsub_label') : t('mapmode.level_label');
+    document.querySelectorAll('.host-sub-tab[data-htab="mapmode"], .host-sub-tab[data-htab="modifiers"], .host-sub-tab[data-htab="playlist"]').forEach(function(tab) {
+        tab.style.display = isCFB27 ? 'none' : '';
+    });
+    var cfb27DiagnosticsPanel = document.getElementById('cfb27DiagnosticsPanel');
+    if (cfb27DiagnosticsPanel) cfb27DiagnosticsPanel.style.display = isCFB27 ? '' : 'none';
+    var cfb27EvidencePath = document.getElementById('cfb27EvidencePath');
+    if (cfb27EvidencePath && !isCFB27) cfb27EvidencePath.style.display = 'none';
+    if (isCFB27) {
+        var cfbActiveHtab = document.querySelector('.host-sub-tab.active');
+        if (cfbActiveHtab && ['mapmode', 'modifiers', 'playlist'].includes(cfbActiveHtab.dataset.htab)) switchHostTab('network');
+    }
     populateLevelPicker(true);
     populateModePicker();
     if (isBFN) populateStartPointPicker();

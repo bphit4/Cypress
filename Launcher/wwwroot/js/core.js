@@ -145,6 +145,12 @@ window.external.receiveMessage(function (msg) {
             if (typeof handleRelinkEAResult === 'function') handleRelinkEAResult(data);
             break;
         case 'status': showStatus(data.text, data.level || 'info'); break;
+        case 'cfb27DiagnosticsResult':
+            if (typeof onCFB27DiagnosticsResult === 'function') onCFB27DiagnosticsResult(data);
+            break;
+        case 'cfb27CaptureResult':
+            if (typeof onCFB27CaptureResult === 'function') onCFB27CaptureResult(data);
+            break;
         case 'gameDir': setGameDir(data.path); break;
         case 'loadUserData': loadUserData(data); break;
         case 'modPacks': populateSelect('modPackSelect', data.packs); break;

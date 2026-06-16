@@ -11,7 +11,7 @@ import (
 func main() {
 	cfg := relay.Config{}
 	flag.StringVar(&cfg.Bind, "bind", "0.0.0.0", "UDP bind address")
-	flag.IntVar(&cfg.Port, "port", 25200, "UDP relay port")
+	flag.IntVar(&cfg.Port, "port", 25201, "UDP relay port")
 	flag.StringVar(&cfg.APIBind, "api-bind", "0.0.0.0", "HTTP API bind address")
 	flag.IntVar(&cfg.APIPort, "api-port", 8080, "HTTP API port")
 	flag.StringVar(&cfg.RelayHost, "relay-host", "relay.local", "Public relay hostname")

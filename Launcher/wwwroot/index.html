@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body style="visibility:hidden">
-<script>try{if(localStorage.getItem('cypress_dark')==='1')document.body.classList.add('dark-mode');}catch(e){}</script>
+<script>try{if(localStorage.getItem('cypress_dark')!=='0')document.body.classList.add('dark-mode');}catch(e){document.body.classList.add('dark-mode');}</script>
     <div class="server-modal-backdrop" id="tosModalBackdrop" style="display:none;">
         <div class="server-modal" style="max-width:480px;" onclick="event.stopPropagation()">
             <h3 class="server-modal-title" data-i18n="tos.title">Welcome to Cypress</h3>
@@ -123,8 +123,8 @@
                     <label class="field-label" data-i18n="sidebar.game_label">Game</label>
                     <div class="game-picker" id="gamePicker">
                         <button class="game-picker-trigger" id="gamePickerTrigger" onclick="toggleGamePicker()">
-                            <img class="game-picker-icon" id="gamePickerIcon" src="data:image/png;base64,{{GW2_ICON_BASE64}}" alt="" height="20" draggable="false">
-                            <span class="game-picker-label" id="gamePickerLabel">Garden Warfare 2</span>
+                            <img class="game-picker-icon" id="gamePickerIcon" src="data:image/png;base64,{{CFB27_ICON_BASE64}}" alt="" height="20" draggable="false">
+                            <span class="game-picker-label" id="gamePickerLabel">EA Sports College Football 27</span>
                             <svg class="game-picker-arrow" width="12" height="12" viewBox="0 0 12 12"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
                         </button>
                         <div class="game-picker-dropdown" id="gamePickerDropdown">
@@ -132,7 +132,7 @@
                                 <img src="data:image/png;base64,{{GW1_ICON_BASE64}}" alt="" height="22" draggable="false">
                                 <span data-i18n="game.gw1">Garden Warfare 1</span>
                             </button>
-                            <button class="game-picker-option selected" data-game="GW2" onclick="selectGame('GW2')">
+                            <button class="game-picker-option" data-game="GW2" onclick="selectGame('GW2')">
                                 <img src="data:image/png;base64,{{GW2_ICON_BASE64}}" alt="" height="22" draggable="false">
                                 <span data-i18n="game.gw2">Garden Warfare 2</span>
                             </button>
@@ -140,9 +140,13 @@
                                 <img src="data:image/png;base64,{{BFN_ICON_BASE64}}" alt="" height="22" draggable="false">
                                 <span data-i18n="game.bfn">Battle for Neighborville</span>
                             </button>
+                            <button class="game-picker-option selected" data-game="CFB27" onclick="selectGame('CFB27')">
+                                <img src="data:image/png;base64,{{CFB27_ICON_BASE64}}" alt="" height="22" draggable="false">
+                                <span data-i18n="game.cfb27">EA Sports College Football 27</span>
+                            </button>
                         </div>
                     </div>
-                    <input type="hidden" id="gameSelector" value="GW2">
+                    <input type="hidden" id="gameSelector" value="CFB27">
                 </div>
                 <div class="game-dir-section">
                     <label class="field-label" data-i18n="sidebar.game_dir_label">Game Directory</label>
@@ -292,9 +296,11 @@
 <img id="bgDataGW1" src="data:image/jpeg;base64,{{GW1_BG_BASE64}}" style="display:none" draggable="false">
                 <img id="bgDataGW2" src="data:image/jpeg;base64,{{GW2_BG_BASE64}}" style="display:none" draggable="false">
                 <img id="bgDataBFN" src="data:image/jpeg;base64,{{BFN_BG_BASE64}}" style="display:none" draggable="false">
+                <img id="bgDataCFB27" src="data:image/jpeg;base64,{{CFB27_BG_BASE64}}" style="display:none" draggable="false">
                 <img id="iconDataGW1" src="data:image/png;base64,{{GW1_ICON_BASE64}}" style="display:none" draggable="false">
                 <img id="iconDataGW2" src="data:image/png;base64,{{GW2_ICON_BASE64}}" style="display:none" draggable="false">
                 <img id="iconDataBFN" src="data:image/png;base64,{{BFN_ICON_BASE64}}" style="display:none" draggable="false">
+                <img id="iconDataCFB27" src="data:image/png;base64,{{CFB27_ICON_BASE64}}" style="display:none" draggable="false">
                 <div class="server-list-container">
                     <div class="server-list-toolbar">
                         <span class="server-list-title" data-i18n="join.saved_servers">Saved Servers</span>
@@ -406,6 +412,7 @@
                                 <option value="GW1">GW1</option>
                                 <option value="GW2">GW2</option>
                                 <option value="BFN">BFN</option>
+                                <option value="CFB27">CFB 27</option>
                             </select>
                         </div>
                         <div class="filter-group">
@@ -549,6 +556,21 @@
 <div class="host-sub-content active" id="htab-network">
 <div class="host-section" style="border-bottom:none;">
                     <h3 class="section-title" data-i18n="host.network_section">Network</h3>
+                    <div id="cfb27DiagnosticsPanel" class="field-hint" style="display:none;margin-bottom:16px;padding:14px 16px;border:1px solid var(--border-primary);border-radius:8px;background:var(--bg-surface);">
+                        <div style="font-weight:700;color:var(--text-primary);margin-bottom:10px;">CFB27 Discovery</div>
+                        <div class="row" style="gap:10px;flex-wrap:wrap;">
+                            <button class="btn btn-secondary" onclick="runCFB27Diagnostics()" id="cfb27DiagnosticsBtn">
+                                <span>Start Diagnostics</span>
+                            </button>
+                            <button class="btn btn-secondary" onclick="captureCFB27Snapshot()" id="cfb27CaptureBtn">
+                                <span>Capture Snapshot</span>
+                            </button>
+                            <button class="btn btn-secondary" onclick="openCFB27EvidenceFolder()" id="cfb27EvidenceBtn">
+                                <span>Open Evidence Folder</span>
+                            </button>
+                        </div>
+                        <div id="cfb27EvidencePath" style="display:none;margin-top:10px;font-family:var(--font-mono);font-size:12px;word-break:break-all;"></div>
+                    </div>
                     <div class="form-grid">
                         <div class="form-group">
                             <label class="field-label" for="deviceIP" id="deviceIPLabel" data-i18n="host.bind_address_label">Bind Address</label>

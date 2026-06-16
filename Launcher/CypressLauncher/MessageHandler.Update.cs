@@ -18,7 +18,7 @@ namespace CypressLauncher;
 public partial class MessageHandler
 {
 	private static readonly string s_updateSavedataKey = "Updates";
-	private static readonly string[] s_serverUpdateGames = { "GW1", "GW2", "BFN" };
+	private static readonly string[] s_serverUpdateGames = { "GW1", "GW2", "BFN", "CFB27" };
 
 	private sealed class UpdateChannel
 	{

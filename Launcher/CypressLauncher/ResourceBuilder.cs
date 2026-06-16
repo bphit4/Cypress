@@ -67,9 +67,11 @@ internal static class ResourceBuilder
 		html = html.Replace("{{GW1_ICON_BASE64}}", GetGameIconBase64("gw1_icon", 120));
 		html = html.Replace("{{GW2_ICON_BASE64}}", GetGameIconBase64("gw2_icon", 120));
 		html = html.Replace("{{BFN_ICON_BASE64}}", GetGameIconBase64("bfn_icon", 120));
+		html = html.Replace("{{CFB27_ICON_BASE64}}", GetGameIconBase64("cfb27_icon", 120));
 		html = html.Replace("{{GW1_BG_BASE64}}", GetGameBgBase64("gw1_bg", 960));
 		html = html.Replace("{{GW2_BG_BASE64}}", GetGameBgBase64("gw2_bg", 960));
 		html = html.Replace("{{BFN_BG_BASE64}}", GetGameBgBase64("bfn_bg", 960));
+		html = html.Replace("{{CFB27_BG_BASE64}}", GetGameBgBase64("cfb27_bg", 960));
 
 		string fontFace = GetBurbankFontFace();
 		css = fontFace + css;

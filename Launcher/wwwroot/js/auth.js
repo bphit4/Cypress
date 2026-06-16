@@ -33,7 +33,8 @@ function updateProfileIdentitySection() {
 var _GAME_LIBRARY_DEFS = [
     { name: 'Garden Warfare 1', iconId: 'iconDataGW1', label: 'GW1' },
     { name: 'Garden Warfare 2', iconId: 'iconDataGW2', label: 'GW2' },
-    { name: 'Battle for Neighborville', iconId: 'iconDataBFN', label: 'BFN' }
+    { name: 'Battle for Neighborville', iconId: 'iconDataBFN', label: 'BFN' },
+    { name: 'EA Sports College Football 27', iconId: 'iconDataCFB27', label: 'CFB 27' }
 ];
 
 function updateGameLibrarySection() {
