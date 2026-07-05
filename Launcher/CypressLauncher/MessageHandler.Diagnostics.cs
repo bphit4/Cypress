@@ -18,6 +18,7 @@ public partial class MessageHandler
 	private readonly Queue<string> m_cfb27RecentEvents = new();
 	private readonly object m_cfb27RecentEventsLock = new();
 	private CFB27DiscoveryCapture? m_cfb27Capture;
+	private CFB27EndpointExperiment? m_cfb27EndpointExperiment;
 
 	private void OnCFB27Diagnostics()
 	{
@@ -29,7 +30,8 @@ public partial class MessageHandler
 				["ok"] = false,
 				["masterUrl"] = "http://127.0.0.1:27900",
 				["relayAddress"] = "127.0.0.1:25201",
-				["dynastyUrl"] = "http://127.0.0.1:27910"
+				["dynastyUrl"] = "http://127.0.0.1:27910",
+				["gatewayUrl"] = "http://127.0.0.1:27920"
 			};
 
 			try
@@ -47,6 +49,7 @@ public partial class MessageHandler
 				string masterExe = FindToolExe(servicesDir, buildDir, "master.exe");
 				string relayExe = FindToolExe(servicesDir, buildDir, "relay.exe");
 				string dynastyExe = FindToolExe(servicesDir, buildDir, "dynasty.exe");
+				string gatewayExe = FindToolExe(servicesDir, buildDir, "cfb27gateway.exe");
 				string dataDir = Path.Combine(GetAppdataDir(), "Diagnostics", "CFB27");
 				Directory.CreateDirectory(dataDir);
 
@@ -78,6 +81,14 @@ public partial class MessageHandler
 					"-schema-root", @"C:\Users\Shadow\Desktop\CFB27\Dynasty_Files",
 					"-db", Path.Combine(dataDir, "cfb27_dynasty.db")
 				}, dataDir, "http://127.0.0.1:27910/health");
+
+				await EnsureDiagnosticProcessAsync("cfb27gateway", gatewayExe, new[]
+				{
+					"-bind", "127.0.0.1",
+					"-port", "27920",
+					"-log-file", Path.Combine(dataDir, "cfb27_gateway.log"),
+					"-candidates-file", Path.Combine(dataDir, "cfb27-endpoints.json")
+				}, dataDir, "http://127.0.0.1:27920/health");
 
 				await Task.Delay(1200);
 				var heartbeat = new JObject
@@ -137,6 +148,79 @@ public partial class MessageHandler
 		});
 	}
 
+	private void OnCFB27TraceEndpoints(JObject msg)
+	{
+		_ = Task.Run(async () =>
+		{
+			int seconds = (int?)msg["seconds"] ?? 30;
+			var result = await GetCFB27Capture().TraceLiveEndpointsAsync(seconds);
+			Send(new JObject
+			{
+				["type"] = "cfb27TraceResult",
+				["ok"] = result.Ok,
+				["runId"] = result.RunId,
+				["path"] = result.RunDirectory,
+				["eventCount"] = result.EventCount,
+				["error"] = result.Error ?? ""
+			});
+		});
+	}
+
+	private void OnCFB27NetworkTrace(JObject msg)
+	{
+		_ = Task.Run(async () =>
+		{
+			int seconds = (int?)msg["seconds"] ?? 30;
+			var result = await GetCFB27EndpointExperiment().CaptureWindowsTraceAsync(seconds);
+			Send(new JObject
+			{
+				["type"] = "cfb27ExperimentResult",
+				["action"] = "networkTrace",
+				["ok"] = result.Ok,
+				["runId"] = result.RunId,
+				["path"] = result.Path,
+				["message"] = result.Message,
+				["error"] = result.Error ?? ""
+			});
+		});
+	}
+
+	private void OnCFB27BlockCandidates()
+	{
+		_ = Task.Run(async () =>
+		{
+			var result = await GetCFB27EndpointExperiment().BlockCandidatesAsync();
+			Send(new JObject
+			{
+				["type"] = "cfb27ExperimentResult",
+				["action"] = "blockCandidates",
+				["ok"] = result.Ok,
+				["runId"] = result.RunId,
+				["path"] = result.Path,
+				["message"] = result.Message,
+				["error"] = result.Error ?? ""
+			});
+		});
+	}
+
+	private void OnCFB27UnblockCandidates()
+	{
+		_ = Task.Run(async () =>
+		{
+			var result = await GetCFB27EndpointExperiment().UnblockCandidatesAsync();
+			Send(new JObject
+			{
+				["type"] = "cfb27ExperimentResult",
+				["action"] = "unblockCandidates",
+				["ok"] = result.Ok,
+				["runId"] = result.RunId,
+				["path"] = result.Path,
+				["message"] = result.Message,
+				["error"] = result.Error ?? ""
+			});
+		});
+	}
+
 	private void OnCFB27OpenEvidenceFolder()
 	{
 		try
@@ -154,6 +238,11 @@ public partial class MessageHandler
 	private CFB27DiscoveryCapture GetCFB27Capture()
 	{
 		return m_cfb27Capture ??= new CFB27DiscoveryCapture(s_httpClient, GetAppdataDir);
+	}
+
+	private CFB27EndpointExperiment GetCFB27EndpointExperiment()
+	{
+		return m_cfb27EndpointExperiment ??= new CFB27EndpointExperiment(GetAppdataDir);
 	}
 
 	private List<CFB27CaptureInstance> GetCFB27CaptureInstances()

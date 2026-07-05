@@ -151,6 +151,12 @@ window.external.receiveMessage(function (msg) {
         case 'cfb27CaptureResult':
             if (typeof onCFB27CaptureResult === 'function') onCFB27CaptureResult(data);
             break;
+        case 'cfb27TraceResult':
+            if (typeof onCFB27TraceResult === 'function') onCFB27TraceResult(data);
+            break;
+        case 'cfb27ExperimentResult':
+            if (typeof onCFB27ExperimentResult === 'function') onCFB27ExperimentResult(data);
+            break;
         case 'gameDir': setGameDir(data.path); break;
         case 'loadUserData': loadUserData(data); break;
         case 'modPacks': populateSelect('modPackSelect', data.packs); break;

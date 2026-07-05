@@ -128,6 +128,38 @@ function captureCFB27Snapshot() {
     send('cfb27CaptureSnapshot', { scenario: 'manual launcher snapshot' });
 }
 
+function traceCFB27Endpoints() {
+    if (typeof getGame === 'function' && getGame() !== 'CFB27') {
+        showStatus('Select CFB27 before tracing endpoints.', 'error');
+        return;
+    }
+    showStatus('Tracing CFB27-owned endpoints for 30 seconds...', 'info');
+    send('cfb27TraceEndpoints', { seconds: 30 });
+}
+
+function captureCFB27NetworkTrace() {
+    if (typeof getGame === 'function' && getGame() !== 'CFB27') {
+        showStatus('Select CFB27 before capturing a network trace.', 'error');
+        return;
+    }
+    showStatus('Capturing Windows network trace for 30 seconds...', 'info');
+    send('cfb27NetworkTrace', { seconds: 30 });
+}
+
+function blockCFB27Candidates() {
+    if (typeof getGame === 'function' && getGame() !== 'CFB27') {
+        showStatus('Select CFB27 before blocking candidates.', 'error');
+        return;
+    }
+    showStatus('Adding firewall block rules for CFB27 candidate IPs...', 'info');
+    send('cfb27BlockCandidates', {});
+}
+
+function unblockCFB27Candidates() {
+    showStatus('Removing CFB27 candidate firewall block rules...', 'info');
+    send('cfb27UnblockCandidates', {});
+}
+
 function openCFB27EvidenceFolder() {
     send('cfb27OpenEvidenceFolder', {});
 }
@@ -139,6 +171,25 @@ function onCFB27CaptureResult(data) {
     } else {
         if (data.path) setCFB27EvidencePath(data.path);
         showStatus('CFB27 evidence capture failed: ' + (data.error || 'unknown error'), 'error');
+    }
+}
+
+function onCFB27TraceResult(data) {
+    if (data.ok) {
+        setCFB27EvidencePath(data.path || '');
+        showStatus('CFB27 endpoint trace captured: ' + (data.eventCount || 0) + ' events', 'success');
+    } else {
+        if (data.path) setCFB27EvidencePath(data.path);
+        showStatus('CFB27 endpoint trace failed: ' + (data.error || 'unknown error'), 'error');
+    }
+}
+
+function onCFB27ExperimentResult(data) {
+    if (data.path) setCFB27EvidencePath(data.path);
+    if (data.ok) {
+        showStatus(data.message || 'CFB27 experiment completed.', 'success');
+    } else {
+        showStatus((data.message || 'CFB27 experiment failed.') + ' ' + (data.error || ''), 'error');
     }
 }
 

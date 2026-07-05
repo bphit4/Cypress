@@ -28,6 +28,7 @@ internal sealed record CFB27CaptureInstance(
 	string? DynastyProfile);
 
 internal sealed record CFB27CaptureResult(bool Ok, string RunId, string RunDirectory, string? Error);
+internal sealed record CFB27EndpointTraceResult(bool Ok, string RunId, string RunDirectory, int EventCount, string? Error);
 
 internal sealed class CFB27DiscoveryCapture
 {
@@ -41,6 +42,89 @@ internal sealed class CFB27DiscoveryCapture
 	}
 
 	public string EvidenceRoot => Path.Combine(_appDataRoot(), "Diagnostics", "CFB27");
+
+	public async Task<CFB27EndpointTraceResult> TraceLiveEndpointsAsync(int seconds)
+	{
+		if (seconds <= 0)
+			seconds = 30;
+		seconds = Math.Min(seconds, 120);
+
+		string runId = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+		string runDir = Path.Combine(EvidenceRoot, "live-traces", runId);
+		Directory.CreateDirectory(runDir);
+
+		try
+		{
+			var events = new JArray();
+			var addresses = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+			DateTime started = DateTime.UtcNow;
+
+			for (int i = 0; i < seconds; i++)
+			{
+				string timestamp = DateTime.UtcNow.ToString("o");
+				var pids = Process.GetProcessesByName("CollegeFB27")
+					.Select(p => p.Id)
+					.ToHashSet();
+				if (pids.Count == 0)
+				{
+					events.Add(new JObject
+					{
+						["timestamp"] = timestamp,
+						["type"] = "process",
+						["message"] = "CollegeFB27 not running"
+					});
+					await Task.Delay(1000);
+					continue;
+				}
+
+				foreach (var ev in await CaptureNetstatEventsAsync(timestamp, pids, addresses))
+					events.Add(ev);
+				await Task.Delay(1000);
+			}
+
+			var reverse = new JArray();
+			foreach (string address in addresses.OrderBy(a => a, StringComparer.OrdinalIgnoreCase))
+			{
+				reverse.Add(new JObject
+				{
+					["address"] = address,
+					["reverseDns"] = await TryReverseDnsAsync(address)
+				});
+			}
+
+			var groups = new JArray(events
+				.OfType<JObject>()
+				.GroupBy(e => $"{e["type"]}|{e["remote"]}|{e["state"]}", StringComparer.OrdinalIgnoreCase)
+				.OrderByDescending(g => g.Count())
+				.Select(g => new JObject
+				{
+					["count"] = g.Count(),
+					["key"] = g.Key
+				}));
+			var summary = new JObject
+			{
+				["runId"] = runId,
+				["startedAt"] = started.ToString("o"),
+				["endedAt"] = DateTime.UtcNow.ToString("o"),
+				["seconds"] = seconds,
+				["eventCount"] = events.Count,
+				["uniqueRemoteAddresses"] = JArray.FromObject(addresses.OrderBy(a => a, StringComparer.OrdinalIgnoreCase))
+			};
+
+			WriteJson(Path.Combine(runDir, "netstat-events.json"), events);
+			WriteJson(Path.Combine(runDir, "reverse-dns.json"), reverse);
+			WriteJson(Path.Combine(runDir, "event-groups.json"), groups);
+			WriteJson(Path.Combine(runDir, "summary.json"), summary);
+			File.WriteAllText(Path.Combine(runDir, "summary.md"), BuildTraceSummary(runId, summary, reverse, groups));
+
+			return new CFB27EndpointTraceResult(true, runId, runDir, events.Count, null);
+		}
+		catch (Exception ex)
+		{
+			File.WriteAllText(Path.Combine(runDir, "trace-error.txt"), ex.ToString());
+			return new CFB27EndpointTraceResult(false, runId, runDir, 0, ex.Message);
+		}
+	}
 
 	public async Task<CFB27CaptureResult> CaptureAsync(
 		string scenario,
@@ -60,6 +144,7 @@ internal sealed class CFB27DiscoveryCapture
 			var ownedEndpoints = CaptureProcessOwnedEndpoints();
 			var knownEaEndpoints = await CaptureKnownEaEndpointsAsync();
 			var knownEaMatches = MatchKnownEaEndpoints(endpoints, ownedEndpoints, knownEaEndpoints);
+			var remoteCandidates = await CaptureCfb27RemoteCandidatesAsync(liveProcesses, ownedEndpoints, knownEaMatches);
 			var env = new JObject
 			{
 				["computerName"] = Environment.MachineName,
@@ -89,6 +174,7 @@ internal sealed class CFB27DiscoveryCapture
 				["processOwnedEndpoints"] = ownedEndpoints,
 				["knownEaEndpoints"] = knownEaEndpoints,
 				["knownEaEndpointMatches"] = knownEaMatches,
+				["cfb27RemoteCandidates"] = remoteCandidates,
 				["notes"] = "Observation only. No gameplay hooks, offsets, tokens, or anti-cheat data are captured."
 			};
 
@@ -98,6 +184,7 @@ internal sealed class CFB27DiscoveryCapture
 			WriteJson(Path.Combine(runDir, "process-endpoints.json"), ownedEndpoints);
 			WriteJson(Path.Combine(runDir, "known-ea-endpoints.json"), knownEaEndpoints);
 			WriteJson(Path.Combine(runDir, "known-ea-endpoint-matches.json"), knownEaMatches);
+			WriteJson(Path.Combine(runDir, "cfb27-remote-candidates.json"), remoteCandidates);
 			File.WriteAllLines(Path.Combine(runDir, "launcher-events.log"), SanitizeEvents(recentEvents));
 			File.WriteAllText(Path.Combine(runDir, "summary.md"), BuildSummary(runId, evidence, services, instances));
 
@@ -374,6 +461,144 @@ internal sealed class CFB27DiscoveryCapture
 		return result;
 	}
 
+	private static async Task<JArray> CaptureCfb27RemoteCandidatesAsync(JArray liveProcesses, JObject ownedEndpoints, JArray knownMatches)
+	{
+		var livePids = liveProcesses
+			.OfType<JObject>()
+			.Select(p => p["pid"]?.ToString())
+			.Where(p => !string.IsNullOrWhiteSpace(p))
+			.ToHashSet(StringComparer.OrdinalIgnoreCase);
+		var knownRemotes = knownMatches
+			.OfType<JObject>()
+			.Select(m => m["remote"]?.ToString())
+			.Where(r => !string.IsNullOrWhiteSpace(r))
+			.ToHashSet(StringComparer.OrdinalIgnoreCase);
+		var result = new JArray();
+		var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+		if (livePids.Count == 0)
+			return result;
+
+		foreach (var c in (ownedEndpoints["tcpConnections"] as JArray ?? new JArray()).OfType<JObject>())
+		{
+			string pid = c["OwningProcess"]?.ToString() ?? "";
+			if (!livePids.Contains(pid))
+				continue;
+
+			string remoteAddress = c["RemoteAddress"]?.ToString() ?? "";
+			string remotePort = c["RemotePort"]?.ToString() ?? "";
+			if (!IsUsefulRemoteAddress(remoteAddress) || string.IsNullOrWhiteSpace(remotePort) || remotePort == "0")
+				continue;
+
+			string remote = $"{remoteAddress}:{remotePort}";
+			if (!seen.Add($"{pid}|{remote}|{c["State"]}"))
+				continue;
+
+			result.Add(new JObject
+			{
+				["pid"] = pid,
+				["remote"] = remote,
+				["remoteAddress"] = remoteAddress,
+				["remotePort"] = remotePort,
+				["state"] = c["State"],
+				["knownCatalogMatch"] = knownRemotes.Contains(remote),
+				["reverseDns"] = await TryReverseDnsAsync(remoteAddress)
+			});
+		}
+
+		return result;
+	}
+
+	private static bool IsUsefulRemoteAddress(string address)
+	{
+		if (string.IsNullOrWhiteSpace(address) || address == "0.0.0.0" || address == "::")
+			return false;
+		if (!IPAddress.TryParse(address, out var ip))
+			return false;
+		if (IPAddress.IsLoopback(ip) || IPAddress.Any.Equals(ip) || IPAddress.IPv6Any.Equals(ip))
+			return false;
+		return true;
+	}
+
+	private static async Task<string?> TryReverseDnsAsync(string address)
+	{
+		try
+		{
+			if (!IPAddress.TryParse(address, out var ip))
+				return null;
+			var entry = await Dns.GetHostEntryAsync(ip);
+			return string.IsNullOrWhiteSpace(entry.HostName) ? null : entry.HostName;
+		}
+		catch
+		{
+			return null;
+		}
+	}
+
+	private static async Task<List<JObject>> CaptureNetstatEventsAsync(string timestamp, HashSet<int> pids, HashSet<string> addresses)
+	{
+		var events = new List<JObject>();
+		var psi = new ProcessStartInfo
+		{
+			FileName = "netstat.exe",
+			UseShellExecute = false,
+			CreateNoWindow = true,
+			RedirectStandardOutput = true,
+			RedirectStandardError = true
+		};
+		psi.ArgumentList.Add("-ano");
+
+		using var proc = Process.Start(psi);
+		if (proc == null)
+			return events;
+
+		string stdout = await proc.StandardOutput.ReadToEndAsync();
+		await proc.WaitForExitAsync();
+
+		foreach (string rawLine in stdout.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries))
+		{
+			string line = rawLine.Trim();
+			if (!line.StartsWith("TCP ", StringComparison.OrdinalIgnoreCase) &&
+				!line.StartsWith("UDP ", StringComparison.OrdinalIgnoreCase))
+				continue;
+
+			var parts = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+			if (parts.Length < 4)
+				continue;
+
+			string proto = parts[0].ToUpperInvariant();
+			if (proto == "TCP" && parts.Length >= 5 && int.TryParse(parts[4], out int tcpPid) && pids.Contains(tcpPid))
+			{
+				string remote = parts[2];
+				string state = parts[3];
+				if (TrySplitEndpoint(remote, out string address, out int port) && IsUsefulRemoteAddress(address) && port > 0)
+					addresses.Add(address);
+				events.Add(new JObject
+				{
+					["timestamp"] = timestamp,
+					["type"] = "tcp",
+					["pid"] = tcpPid,
+					["state"] = state,
+					["local"] = parts[1],
+					["remote"] = remote
+				});
+			}
+			else if (proto == "UDP" && int.TryParse(parts[^1], out int udpPid) && pids.Contains(udpPid))
+			{
+				events.Add(new JObject
+				{
+					["timestamp"] = timestamp,
+					["type"] = "udp",
+					["pid"] = udpPid,
+					["local"] = parts.Length > 1 ? parts[1] : "",
+					["remote"] = parts.Length > 2 ? parts[2] : ""
+				});
+			}
+		}
+
+		return events;
+	}
+
 	private static bool TrySplitEndpoint(string endpoint, out string address, out int port)
 	{
 		address = "";
@@ -507,6 +732,7 @@ internal sealed class CFB27DiscoveryCapture
 		}
 
 		var liveProcesses = evidence["liveProcesses"] as JArray ?? new JArray();
+		var remoteCandidates = evidence["cfb27RemoteCandidates"] as JArray ?? new JArray();
 		string LiveProcessLines()
 		{
 			if (liveProcesses.Count == 0)
@@ -514,6 +740,14 @@ internal sealed class CFB27DiscoveryCapture
 			return string.Join(Environment.NewLine, liveProcesses
 				.OfType<JObject>()
 				.Select(p => $"- PID {p["pid"]}, responding={p["responding"] ?? "n/a"}, title=`{p["mainWindowTitle"] ?? ""}`"));
+		}
+		string RemoteCandidateLines()
+		{
+			if (remoteCandidates.Count == 0)
+				return "- No process-owned CFB27 remote TCP endpoints were visible during this capture.";
+			return string.Join(Environment.NewLine, remoteCandidates
+				.OfType<JObject>()
+				.Select(c => $"- PID {c["pid"]}: `{c["remote"]}` state={c["state"] ?? "n/a"}, known={c["knownCatalogMatch"] ?? false}, reverseDns=`{c["reverseDns"] ?? ""}`"));
 		}
 
 		return string.Join(Environment.NewLine, new[]
@@ -539,9 +773,56 @@ internal sealed class CFB27DiscoveryCapture
 			"## Live Processes",
 			LiveProcessLines(),
 			"",
+			"## CFB27 Remote Candidates",
+			RemoteCandidateLines(),
+			"",
 			"## Notes",
 			"- This evidence is observational only.",
 			"- No gameplay hooks, offsets, account tokens, or anti-cheat data are captured.",
+			""
+		});
+	}
+
+	private static string BuildTraceSummary(string runId, JObject summary, JArray reverseDns, JArray groups)
+	{
+		string ReverseLines()
+		{
+			if (reverseDns.Count == 0)
+				return "- No remote addresses were observed.";
+			return string.Join(Environment.NewLine, reverseDns
+				.OfType<JObject>()
+				.Select(r => $"- `{r["address"]}` reverseDns=`{r["reverseDns"] ?? ""}`"));
+		}
+
+		string GroupLines()
+		{
+			if (groups.Count == 0)
+				return "- No endpoint events were observed.";
+			return string.Join(Environment.NewLine, groups
+				.OfType<JObject>()
+				.Take(20)
+				.Select(g => $"- {g["count"]} x `{g["key"]}`"));
+		}
+
+		return string.Join(Environment.NewLine, new[]
+		{
+			"# CFB27 Live Endpoint Trace",
+			"",
+			$"- Run: `{runId}`",
+			$"- Started: `{summary["startedAt"]}`",
+			$"- Ended: `{summary["endedAt"]}`",
+			$"- Seconds: `{summary["seconds"]}`",
+			$"- Events: `{summary["eventCount"]}`",
+			"",
+			"## Remote Addresses",
+			ReverseLines(),
+			"",
+			"## Event Groups",
+			GroupLines(),
+			"",
+			"## Notes",
+			"- Passive process-owned socket trace only.",
+			"- No packet payloads, tokens, memory, or anti-cheat data are captured.",
 			""
 		});
 	}

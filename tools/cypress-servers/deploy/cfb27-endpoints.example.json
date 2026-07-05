@@ -1,0 +1,38 @@
+{
+  "mode": "observe-first",
+  "gateway": "http://127.0.0.1:27920",
+  "candidates": [
+    {
+      "remote": "13.216.20.181:443",
+      "address": "13.216.20.181",
+      "port": 443,
+      "reverseDns": "ec2-13-216-20-181.compute-1.amazonaws.com",
+      "status": "observed_unknown_https_candidate",
+      "firstSeen": "2026-06-16",
+      "description": "Repeated CFB27-owned HTTPS connection during online-gated screens."
+    },
+    {
+      "remote": "54.236.91.7:443",
+      "address": "54.236.91.7",
+      "port": 443,
+      "reverseDns": "ec2-54-236-91-7.compute-1.amazonaws.com",
+      "status": "observed_unknown_https_candidate",
+      "firstSeen": "2026-06-16",
+      "description": "Earlier CFB27-owned HTTPS connection during fake anti-cheat/offline run."
+    },
+    {
+      "remote": "54.144.133.160:443",
+      "address": "54.144.133.160",
+      "port": 443,
+      "reverseDns": "ec2-54-144-133-160.compute-1.amazonaws.com",
+      "status": "observed_unknown_https_candidate",
+      "firstSeen": "2026-06-16",
+      "description": "CFB27-owned HTTPS connection during Dynasty and multi-mode trigger live traces."
+    }
+  ],
+  "notes": [
+    "These are proven process-owned CFB27 remotes, not confirmed protocol endpoints.",
+    "Do not redirect blindly; TLS/SNI/certificate behavior must be identified first.",
+    "The local gateway/logger is for controlled redirect experiments only."
+  ]
+}

@@ -265,6 +265,18 @@ public partial class MessageHandler
 				case "cfb27CaptureSnapshot":
 					OnCFB27CaptureSnapshot(msg);
 					break;
+				case "cfb27TraceEndpoints":
+					OnCFB27TraceEndpoints(msg);
+					break;
+				case "cfb27NetworkTrace":
+					OnCFB27NetworkTrace(msg);
+					break;
+				case "cfb27BlockCandidates":
+					OnCFB27BlockCandidates();
+					break;
+				case "cfb27UnblockCandidates":
+					OnCFB27UnblockCandidates();
+					break;
 				case "cfb27OpenEvidenceFolder":
 					OnCFB27OpenEvidenceFolder();
 					break;
