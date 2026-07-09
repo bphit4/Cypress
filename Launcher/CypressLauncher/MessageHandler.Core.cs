@@ -41,6 +41,7 @@ public partial class MessageHandler
 		{ PVZGame.BFN, "PVZBattleforNeighborville.exe" },
 		{ PVZGame.CFB27, "CollegeFB27.exe" }
 	};
+	private static readonly string[] s_cfb27ExecutableNames = { "CollegeFB27.exe", "CollegeFB27_Trial.exe" };
 
 	internal static readonly Dictionary<PVZGame, string> s_gameToPatchedExecutableName = new()
 	{
@@ -80,6 +81,19 @@ public partial class MessageHandler
 
 	private static bool IsCFB27(PVZGame game) => game == PVZGame.CFB27;
 
+	private static IEnumerable<string> GetExecutableNames(PVZGame game) =>
+		IsCFB27(game) ? s_cfb27ExecutableNames : new[] { s_gameToExecutableName[game] };
+
+	private static string GetExpectedExecutableDescription(PVZGame game) =>
+		string.Join(" or ", GetExecutableNames(game));
+
+	private static bool DirectoryContainsGameExecutable(PVZGame game, string directory) =>
+		GetExecutableNames(game).Any(exe => File.Exists(Path.Combine(directory, exe)));
+
+	private static string ResolveGameExecutableName(PVZGame game, string directory) =>
+		GetExecutableNames(game).FirstOrDefault(exe => File.Exists(Path.Combine(directory, exe)))
+		?? s_gameToExecutableName[game];
+
 	private static string GetUnifiedBanlistPath()
 	{
 		var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Cypress", "ServerData");
@@ -92,6 +106,9 @@ public partial class MessageHandler
 	private readonly Dictionary<int, ExternalInstance> m_externalInstances = new();
 	private readonly object m_instanceLock = new();
 	private long m_lastLaunchTicks = 0;
+	// Guards the async CFB27 private-stack launch so mashing Launch cannot spawn
+	// overlapping stacks. 0 = idle, 1 = a CFB27 launch is in progress.
+	private int m_cfb27LaunchInProgress = 0;
 
 	private static string MASTER_SERVER_URL => LauncherConfig.MasterUrl;
 	private readonly Dictionary<int, HeartbeatState> m_heartbeats = new();

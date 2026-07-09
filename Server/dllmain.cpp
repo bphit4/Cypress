@@ -2,6 +2,7 @@
 
 #ifdef CYPRESS_CFB27
 
+#include <CFB27/BridgeBootstrap.h>
 #include <Unknwn.h>
 
 #pragma comment(lib, "Ws2_32.lib")
@@ -42,10 +43,14 @@ extern "C"
     }
 }
 
-BOOL APIENTRY DllMain(HMODULE, DWORD dwCallReason, LPVOID)
+BOOL APIENTRY DllMain(HMODULE module, DWORD dwCallReason, LPVOID)
 {
     if (dwCallReason == DLL_PROCESS_ATTACH)
+    {
+        DisableThreadLibraryCalls(module);
         InitDirectInput8Exports();
+        Cypress::CFB27::StartBridge(module);
+    }
     return TRUE;
 }
 

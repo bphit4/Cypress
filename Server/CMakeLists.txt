@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 project(Cypress LANGUAGES C CXX)
+include(CTest)
 
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 set(CMAKE_CXX_STANDARD 20)
@@ -75,6 +76,12 @@ if(CYPRESS_CFB27)
   set(SOURCES
           dllmain.cpp
           pch.cpp
+          Source/CFB27/BridgeBootstrap.cpp
+          Source/CFB27/BridgeConfig.cpp
+          Source/CFB27/BridgeLog.cpp
+          Source/CFB27/MemoryDiscovery.cpp
+          Source/CFB27/PatternScanner.cpp
+          Source/CFB27/RedirectorHook.cpp
   )
 else()
   file(GLOB_RECURSE SOURCES
@@ -82,6 +89,23 @@ else()
           Source/*.cpp
           include/*.cpp
   )
+endif()
+
+if(CYPRESS_CFB27 AND BUILD_TESTING)
+  add_executable(CFB27BridgeTests
+          Tests/CFB27BridgeTests.cpp
+          Source/CFB27/BridgeConfig.cpp
+          Source/CFB27/BridgeLog.cpp
+          Source/CFB27/PatternScanner.cpp
+          Source/CFB27/RedirectorHook.cpp
+  )
+  target_include_directories(CFB27BridgeTests PRIVATE
+          ${CMAKE_SOURCE_DIR}/include
+          ${CMAKE_SOURCE_DIR}/Source
+  )
+  target_compile_definitions(CFB27BridgeTests PRIVATE CYPRESS_CFB27)
+  target_link_libraries(CFB27BridgeTests PRIVATE minhook bcrypt.lib ws2_32.lib winhttp.lib)
+  add_test(NAME CFB27BridgeTests COMMAND CFB27BridgeTests)
 endif()
 
 add_library(Cypress SHARED ${SOURCES})

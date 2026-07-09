@@ -19,6 +19,94 @@ public partial class MessageHandler
 	private readonly object m_cfb27RecentEventsLock = new();
 	private CFB27DiscoveryCapture? m_cfb27Capture;
 	private CFB27EndpointExperiment? m_cfb27EndpointExperiment;
+	private string m_cfb27PrivateRunDirectory = "";
+	private string m_cfb27PrivateProfile = "LocalPlayer";
+	private string m_cfb27PrivateStartLog = "";
+
+	private async Task<string> EnsureCFB27PrivateStackAsync(string profile)
+	{
+		string root = FindCypressRoot();
+		string servicesDir = Path.Combine(root, "tools", "cypress-servers");
+		string buildDir = Path.Combine(servicesDir, "build");
+		string dynastyExe = FindToolExe(servicesDir, buildDir, "dynasty.exe");
+		string blazeExe = FindToolExe(servicesDir, buildDir, "cfb27blaze.exe");
+		string schemaRoot = FindCFB27SchemaRoot(servicesDir);
+		string privateRoot = Path.Combine(GetAppdataDir(), "CFB27", "Private");
+		string dataDir = Path.Combine(privateRoot, "data");
+		string runDir = Path.Combine(privateRoot, "runs", DateTime.Now.ToString("yyyyMMdd_HHmmss"));
+		Directory.CreateDirectory(dataDir);
+		Directory.CreateDirectory(runDir);
+
+		m_cfb27PrivateProfile = string.IsNullOrWhiteSpace(profile) ? "LocalPlayer" : profile.Trim();
+		m_cfb27PrivateRunDirectory = runDir;
+		m_cfb27PrivateStartLog = Path.Combine(runDir, "private-start.log");
+		LogCFB27PrivateStart("private stack start requested");
+		LogCFB27PrivateStart("root=" + root);
+		LogCFB27PrivateStart("servicesDir=" + servicesDir);
+		LogCFB27PrivateStart("dynastyExe=" + dynastyExe);
+		LogCFB27PrivateStart("blazeExe=" + blazeExe);
+		LogCFB27PrivateStart("schemaRoot=" + schemaRoot);
+		LogCFB27PrivateStart("dataDir=" + dataDir);
+		LogCFB27PrivateStart("profile=" + m_cfb27PrivateProfile);
+		SendStatus("Starting CFB27 private Dynasty service...", "info");
+
+		await EnsureDiagnosticProcessAsync("dynasty", dynastyExe, new[]
+		{
+			"-bind", "127.0.0.1",
+			"-port", "27910",
+			"-schema-root", schemaRoot,
+			"-db", Path.Combine(dataDir, "cfb27_dynasty.db")
+		}, runDir, "http://127.0.0.1:27910/health", startupTimeoutSeconds: 300, restartIfHealthy: true);
+		LogCFB27PrivateStart("dynasty service healthy");
+		SendStatus("Starting CFB27 local Blaze bridge...", "info");
+
+		await EnsureDiagnosticProcessAsync("cfb27blaze", blazeExe, new[]
+		{
+			"-bind", "127.0.0.1",
+			"-port", "27920",
+			"-diagnostics-bind", "127.0.0.1",
+			"-diagnostics-port", "27921",
+			"-dynasty-url", "http://127.0.0.1:27910",
+			"-profile", m_cfb27PrivateProfile,
+			"-run-id", Path.GetFileName(runDir),
+			"-log-file", Path.Combine(runDir, "cfb27-blaze.jsonl")
+		}, runDir, "http://127.0.0.1:27921/health", startupTimeoutSeconds: 30, restartIfHealthy: true);
+		LogCFB27PrivateStart("cfb27blaze service healthy");
+
+		RecordCFB27Event($"private stack ready runDir={runDir} profile={m_cfb27PrivateProfile}");
+		LogCFB27PrivateStart("private stack ready");
+		return runDir;
+	}
+
+	private void LogCFB27PrivateStart(string line)
+	{
+		if (string.IsNullOrWhiteSpace(m_cfb27PrivateStartLog))
+			return;
+		try
+		{
+			File.AppendAllText(
+				m_cfb27PrivateStartLog,
+				$"{DateTime.Now:O} {line}{Environment.NewLine}");
+		}
+		catch { }
+	}
+
+	private static string FindCFB27SchemaRoot(string servicesDir)
+	{
+		string packaged = Path.Combine(servicesDir, "deploy", "Dynasty_Files");
+		if (Directory.Exists(packaged))
+			return packaged;
+
+		string desktop = Path.Combine(
+			Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
+			"CFB27",
+			"Dynasty_Files");
+		if (Directory.Exists(desktop))
+			return desktop;
+
+		throw new DirectoryNotFoundException(
+			"CFB27 Dynasty_Files was not found in the Cypress package or Desktop\\CFB27.");
+	}
 
 	private void OnCFB27Diagnostics()
 	{
@@ -52,6 +140,10 @@ public partial class MessageHandler
 				string gatewayExe = FindToolExe(servicesDir, buildDir, "cfb27gateway.exe");
 				string dataDir = Path.Combine(GetAppdataDir(), "Diagnostics", "CFB27");
 				Directory.CreateDirectory(dataDir);
+				string packagedCandidates = Path.Combine(servicesDir, "deploy", "cfb27-endpoints.example.json");
+				string runtimeCandidates = Path.Combine(dataDir, "cfb27-endpoints.json");
+				if (File.Exists(packagedCandidates))
+					File.Copy(packagedCandidates, runtimeCandidates, overwrite: true);
 
 				await EnsureDiagnosticProcessAsync("master", masterExe, new[]
 				{
@@ -78,7 +170,7 @@ public partial class MessageHandler
 				{
 					"-bind", "127.0.0.1",
 					"-port", "27910",
-					"-schema-root", @"C:\Users\Shadow\Desktop\CFB27\Dynasty_Files",
+					"-schema-root", Path.Combine(servicesDir, "deploy", "Dynasty_Files"),
 					"-db", Path.Combine(dataDir, "cfb27_dynasty.db")
 				}, dataDir, "http://127.0.0.1:27910/health");
 
@@ -313,34 +405,86 @@ public partial class MessageHandler
 		throw new FileNotFoundException($"Could not find {exeName}. Run tools/cypress-servers/build.ps1 first.", exeName);
 	}
 
-	private async Task EnsureDiagnosticProcessAsync(string name, string exe, IEnumerable<string> args, string workingDir, string healthUrl)
+	private async Task EnsureDiagnosticProcessAsync(
+		string name,
+		string exe,
+		IEnumerable<string> args,
+		string workingDir,
+		string healthUrl,
+		int startupTimeoutSeconds = 5,
+		bool restartIfHealthy = false)
 	{
 		if (await IsDiagnosticServiceHealthyAsync(healthUrl))
 		{
-			RecordCFB27Event($"diagnostics: reused existing {name} service at {healthUrl}");
-			return;
+			if (restartIfHealthy)
+			{
+				LogCFB27PrivateStart($"{name}: healthy existing service found at {healthUrl}; restarting");
+				StopDiagnosticProcesses(name);
+				await Task.Delay(500);
+			}
+			else
+			{
+				RecordCFB27Event($"diagnostics: reused existing {name} service at {healthUrl}");
+				LogCFB27PrivateStart($"{name}: reused existing healthy service at {healthUrl}");
+				return;
+			}
 		}
 
+		LogCFB27PrivateStart($"{name}: starting {exe}");
+		LogCFB27PrivateStart($"{name}: args={string.Join(" ", args.Select(a => a.Contains(' ') ? "\"" + a + "\"" : a))}");
+		LogCFB27PrivateStart($"{name}: workingDir={workingDir}");
 		var proc = StartDiagnosticProcess(exe, args, workingDir);
 		RecordCFB27Event($"diagnostics: started {name} pid={proc.Id}");
+		LogCFB27PrivateStart($"{name}: started pid={proc.Id}");
 
-		DateTime deadline = DateTime.UtcNow.AddSeconds(5);
+		DateTime deadline = DateTime.UtcNow.AddSeconds(startupTimeoutSeconds);
 		while (DateTime.UtcNow < deadline)
 		{
 			if (await IsDiagnosticServiceHealthyAsync(healthUrl))
+			{
+				LogCFB27PrivateStart($"{name}: healthy at {healthUrl}");
 				return;
+			}
 
 			if (proc.HasExited)
 			{
 				string stdout = await ReadProcessStreamSafeAsync(proc.StandardOutput);
 				string stderr = await ReadProcessStreamSafeAsync(proc.StandardError);
+				LogCFB27PrivateStart($"{name}: exited code={proc.ExitCode}");
+				if (!string.IsNullOrWhiteSpace(stderr))
+					LogCFB27PrivateStart($"{name}: stderr={stderr}");
+				if (!string.IsNullOrWhiteSpace(stdout))
+					LogCFB27PrivateStart($"{name}: stdout={stdout}");
 				throw new InvalidOperationException($"{name} diagnostics service exited early with code {proc.ExitCode}. {stderr} {stdout}".Trim());
 			}
 
 			await Task.Delay(250);
 		}
 
+		LogCFB27PrivateStart($"{name}: timeout waiting for {healthUrl}");
 		throw new TimeoutException($"{name} diagnostics service did not become healthy at {healthUrl}.");
+	}
+
+	private void StopDiagnosticProcesses(string name)
+	{
+		foreach (var proc in Process.GetProcessesByName(name))
+		{
+			try
+			{
+				LogCFB27PrivateStart($"{name}: stopping existing pid={proc.Id}");
+				proc.Kill(entireProcessTree: true);
+				proc.WaitForExit(5000);
+				LogCFB27PrivateStart($"{name}: stopped pid={proc.Id}");
+			}
+			catch (Exception ex)
+			{
+				LogCFB27PrivateStart($"{name}: failed to stop pid={proc.Id}: {ex.Message}");
+			}
+			finally
+			{
+				proc.Dispose();
+			}
+		}
 	}
 
 	private static async Task<bool> IsDiagnosticServiceHealthyAsync(string url)

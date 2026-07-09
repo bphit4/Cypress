@@ -1,38 +1,533 @@
 {
   "mode": "observe-first",
+  "scenario": "main-menu-to-loaded-dynasty",
   "gateway": "http://127.0.0.1:27920",
   "candidates": [
     {
-      "remote": "13.216.20.181:443",
-      "address": "13.216.20.181",
+      "remote": "3.211.7.66:443",
+      "address": "3.211.7.66",
       "port": 443,
-      "reverseDns": "ec2-13-216-20-181.compute-1.amazonaws.com",
-      "status": "observed_unknown_https_candidate",
-      "firstSeen": "2026-06-16",
-      "description": "Repeated CFB27-owned HTTPS connection during online-gated screens."
+      "reverseDns": "ec2-3-211-7-66.compute-1.amazonaws.com",
+      "status": "repeated_main_menu_to_dynasty_candidate",
+      "firstSeen": "2026-07-05",
+      "description": "Stable CFB27-owned HTTPS connection across main menu to loaded Dynasty traces."
     },
     {
-      "remote": "54.236.91.7:443",
-      "address": "54.236.91.7",
+      "remote": "15.197.149.64:443",
+      "address": "15.197.149.64",
       "port": 443,
-      "reverseDns": "ec2-54-236-91-7.compute-1.amazonaws.com",
-      "status": "observed_unknown_https_candidate",
-      "firstSeen": "2026-06-16",
-      "description": "Earlier CFB27-owned HTTPS connection during fake anti-cheat/offline run."
+      "reverseDns": "a12a50e7ce5e2429b.awsglobalaccelerator.com",
+      "status": "repeated_main_menu_to_dynasty_candidate",
+      "firstSeen": "2026-07-05",
+      "description": "Stable CFB27-owned AWS Global Accelerator HTTPS connection across main menu to loaded Dynasty traces."
     },
     {
-      "remote": "54.144.133.160:443",
-      "address": "54.144.133.160",
+      "remote": "52.86.188.173:443",
+      "address": "52.86.188.173",
       "port": 443,
-      "reverseDns": "ec2-54-144-133-160.compute-1.amazonaws.com",
-      "status": "observed_unknown_https_candidate",
-      "firstSeen": "2026-06-16",
-      "description": "CFB27-owned HTTPS connection during Dynasty and multi-mode trigger live traces."
+      "reverseDns": "ec2-52-86-188-173.compute-1.amazonaws.com",
+      "status": "repeated_main_menu_to_dynasty_candidate",
+      "firstSeen": "2026-07-05",
+      "description": "Stable CFB27-owned HTTPS connection across main menu to loaded Dynasty traces."
+    },
+    {
+      "remote": "54.84.50.224:443",
+      "address": "54.84.50.224",
+      "port": 443,
+      "reverseDns": "ec2-54-84-50-224.compute-1.amazonaws.com",
+      "status": "repeated_main_menu_to_dynasty_candidate",
+      "firstSeen": "2026-07-05",
+      "description": "Stable CFB27-owned HTTPS connection across main menu to loaded Dynasty traces."
+    },
+    {
+      "remote": "5.60.70.255:15013",
+      "address": "5.60.70.255",
+      "port": 15013,
+      "reverseDns": "ec2-5-60-70-255.compute-1.amazonaws.com",
+      "status": "repeated_main_menu_to_dynasty_candidate",
+      "firstSeen": "2026-07-05",
+      "description": "Stable CFB27-owned nonstandard-port connection across main menu to loaded Dynasty traces."
+    },
+    {
+      "remote": "54.220.191.132:11000",
+      "address": "54.220.191.132",
+      "port": 11000,
+      "reverseDns": "ec2-54-220-191-132.eu-west-1.compute.amazonaws.com",
+      "status": "repeated_main_menu_to_dynasty_candidate",
+      "firstSeen": "2026-07-05",
+      "description": "Stable CFB27-owned nonstandard-port connection across main menu to loaded Dynasty traces."
+    },
+    {
+      "remote": "100.50.20.250:8095",
+      "address": "100.50.20.250",
+      "port": 8095,
+      "reverseDns": "ec2-100-50-20-250.compute-1.amazonaws.com",
+      "status": "repeated_main_menu_to_dynasty_candidate",
+      "firstSeen": "2026-07-05",
+      "description": "Stable CFB27-owned nonstandard-port connection across main menu to loaded Dynasty traces."
+    },
+    {
+      "remote": "54.229.157.171:10010",
+      "address": "54.229.157.171",
+      "port": 10010,
+      "reverseDns": "ec2-54-229-157-171.eu-west-1.compute.amazonaws.com",
+      "status": "repeated_main_menu_to_dynasty_candidate_close_wait",
+      "firstSeen": "2026-07-05",
+      "description": "Repeated CFB27-owned nonstandard-port connection observed in CLOSE_WAIT across main menu to loaded Dynasty traces."
+    },
+    {
+      "remote": "44.210.5.191:443",
+      "address": "44.210.5.191",
+      "port": 443,
+      "reverseDns": "ec2-44-210-5-191.compute-1.amazonaws.com",
+      "status": "repeated_main_menu_to_dynasty_candidate_rotating_https",
+      "firstSeen": "2026-07-05",
+      "description": "Repeated CFB27-owned HTTPS connection, sometimes replaced by nearby AWS nodes during the same scenario."
+    },
+    {
+      "remote": "13.219.5.48:443",
+      "address": "13.219.5.48",
+      "port": 443,
+      "reverseDns": "ec2-13-219-5-48.compute-1.amazonaws.com",
+      "status": "observed_main_menu_to_dynasty_rotating_https",
+      "firstSeen": "2026-07-05",
+      "description": "Rotating CFB27-owned HTTPS node observed during main menu to loaded Dynasty traces."
+    },
+    {
+      "remote": "54.163.11.31:443",
+      "address": "54.163.11.31",
+      "port": 443,
+      "reverseDns": "ec2-54-163-11-31.compute-1.amazonaws.com",
+      "status": "observed_main_menu_to_dynasty_rotating_https",
+      "firstSeen": "2026-07-05",
+      "description": "Rotating CFB27-owned HTTPS node observed during main menu to loaded Dynasty traces."
+    },
+    {
+      "remote": "3.217.198.198:443",
+      "address": "3.217.198.198",
+      "port": 443,
+      "reverseDns": "ec2-3-217-198-198.compute-1.amazonaws.com",
+      "status": "observed_main_menu_to_dynasty_rotating_https",
+      "firstSeen": "2026-07-05",
+      "description": "Rotating CFB27-owned HTTPS node observed during main menu to loaded Dynasty traces."
+    },
+    {
+      "remote": "98.89.213.24:443",
+      "address": "98.89.213.24",
+      "port": 443,
+      "reverseDns": "ec2-98-89-213-24.compute-1.amazonaws.com",
+      "status": "observed_blocked_dynasty_loading_https",
+      "firstSeen": "2026-07-05",
+      "description": "CFB27-owned HTTPS connection observed throughout the blocked main menu to Dynasty permanent loading-screen trace."
+    },
+    {
+      "remote": "13.248.213.89:443",
+      "address": "13.248.213.89",
+      "port": 443,
+      "reverseDns": "a8a57f98033294441.awsglobalaccelerator.com",
+      "status": "observed_blocked_dynasty_loading_https",
+      "firstSeen": "2026-07-05",
+      "description": "CFB27-owned AWS Global Accelerator HTTPS connection observed during the blocked main menu to Dynasty permanent loading-screen trace."
+    },
+    {
+      "remote": "166.117.23.51:443",
+      "address": "166.117.23.51",
+      "port": 443,
+      "reverseDns": "aef2bc715b7599947.awsglobalaccelerator.com",
+      "status": "observed_blocked_dynasty_loading_https",
+      "firstSeen": "2026-07-05",
+      "description": "CFB27-owned AWS Global Accelerator HTTPS connection observed during the blocked main menu to Dynasty permanent loading-screen trace."
+    },
+    {
+      "remote": "54.197.155.195:443",
+      "address": "54.197.155.195",
+      "port": 443,
+      "reverseDns": "ec2-54-197-155-195.compute-1.amazonaws.com",
+      "status": "observed_blocked_dynasty_loading_https",
+      "firstSeen": "2026-07-05",
+      "description": "CFB27-owned HTTPS connection observed during the blocked main menu to Dynasty permanent loading-screen trace."
+    },
+    {
+      "remote": "54.210.180.10:443",
+      "address": "54.210.180.10",
+      "port": 443,
+      "reverseDns": "ec2-54-210-180-10.compute-1.amazonaws.com",
+      "status": "observed_blocked_dynasty_loading_https",
+      "firstSeen": "2026-07-05",
+      "description": "CFB27-owned HTTPS connection observed during the blocked main menu to Dynasty permanent loading-screen trace."
+    },
+    {
+      "remote": "100.60.28.226:443",
+      "address": "100.60.28.226",
+      "port": 443,
+      "reverseDns": "ec2-100-60-28-226.compute-1.amazonaws.com",
+      "status": "observed_blocked_dynasty_loading_https",
+      "firstSeen": "2026-07-05",
+      "description": "Late-appearing CFB27-owned HTTPS node observed during the blocked main menu to Dynasty permanent loading-screen trace."
+    },
+    {
+      "remote": "5.60.70.236:15055",
+      "address": "5.60.70.236",
+      "port": 15055,
+      "reverseDns": "ec2-5-60-70-236.compute-1.amazonaws.com",
+      "status": "observed_blocked_dynasty_loading_nonstandard_port",
+      "firstSeen": "2026-07-05",
+      "description": "Short-lived CFB27-owned nonstandard-port connection observed during the blocked main menu to Dynasty permanent loading-screen trace."
+    },
+    {
+      "remote": "5.60.70.64:15037",
+      "address": "5.60.70.64",
+      "port": 15037,
+      "reverseDns": "ec2-5-60-70-64.compute-1.amazonaws.com",
+      "status": "repeated_dynasty_rotated_nonstandard_port",
+      "firstSeen": "2026-07-05",
+      "description": "Repeated CFB27-owned nonstandard-port connection observed after blocking the earlier Dynasty candidate set."
+    },
+    {
+      "remote": "34.246.236.54:11000",
+      "address": "34.246.236.54",
+      "port": 11000,
+      "reverseDns": "ec2-34-246-236-54.eu-west-1.compute.amazonaws.com",
+      "status": "repeated_dynasty_rotated_nonstandard_port",
+      "firstSeen": "2026-07-05",
+      "description": "Repeated CFB27-owned nonstandard-port connection observed after blocking the earlier Dynasty candidate set."
+    },
+    {
+      "remote": "98.85.38.9:8095",
+      "address": "98.85.38.9",
+      "port": 8095,
+      "reverseDns": "ec2-98-85-38-9.compute-1.amazonaws.com",
+      "status": "repeated_dynasty_rotated_nonstandard_port",
+      "firstSeen": "2026-07-05",
+      "description": "Repeated CFB27-owned nonstandard-port connection observed after blocking the earlier Dynasty candidate set."
+    },
+    {
+      "remote": "52.21.64.182:443",
+      "address": "52.21.64.182",
+      "port": 443,
+      "reverseDns": "ec2-52-21-64-182.compute-1.amazonaws.com",
+      "status": "repeated_dynasty_rotated_https",
+      "firstSeen": "2026-07-05",
+      "description": "Repeated CFB27-owned HTTPS node observed after blocking the earlier Dynasty candidate set."
+    },
+    {
+      "remote": "52.5.25.187:443",
+      "address": "52.5.25.187",
+      "port": 443,
+      "reverseDns": "ec2-52-5-25-187.compute-1.amazonaws.com",
+      "status": "repeated_dynasty_rotated_https",
+      "firstSeen": "2026-07-05",
+      "description": "Repeated CFB27-owned HTTPS node observed after blocking the earlier Dynasty candidate set."
+    },
+    {
+      "remote": "174.129.226.162:443",
+      "address": "174.129.226.162",
+      "port": 443,
+      "reverseDns": "ec2-174-129-226-162.compute-1.amazonaws.com",
+      "status": "repeated_dynasty_rotated_https",
+      "firstSeen": "2026-07-05",
+      "description": "Repeated CFB27-owned HTTPS node observed after blocking the earlier Dynasty candidate set."
+    },
+    {
+      "remote": "3.210.214.59:443",
+      "address": "3.210.214.59",
+      "port": 443,
+      "reverseDns": "ec2-3-210-214-59.compute-1.amazonaws.com",
+      "status": "repeated_dynasty_rotated_https",
+      "firstSeen": "2026-07-05",
+      "description": "Repeated CFB27-owned HTTPS node observed after blocking the earlier Dynasty candidate set."
+    },
+    {
+      "remote": "3.33.187.54:443",
+      "address": "3.33.187.54",
+      "port": 443,
+      "reverseDns": "a8a57f98033294441.awsglobalaccelerator.com",
+      "status": "repeated_dynasty_rotated_https",
+      "firstSeen": "2026-07-05",
+      "description": "Repeated CFB27-owned AWS Global Accelerator HTTPS node observed after blocking the earlier Dynasty candidate set."
+    },
+    {
+      "remote": "54.210.33.216:443",
+      "address": "54.210.33.216",
+      "port": 443,
+      "reverseDns": "ec2-54-210-33-216.compute-1.amazonaws.com",
+      "status": "observed_dynasty_rotated_https",
+      "firstSeen": "2026-07-05",
+      "description": "CFB27-owned HTTPS node observed in the unblocked main menu to Dynasty trace."
+    },
+    {
+      "remote": "35.174.195.43:443",
+      "address": "35.174.195.43",
+      "port": 443,
+      "reverseDns": "ec2-35-174-195-43.compute-1.amazonaws.com",
+      "status": "observed_dynasty_rotated_https",
+      "firstSeen": "2026-07-05",
+      "description": "CFB27-owned HTTPS node observed in a blocked main menu to Dynasty trace."
+    },
+    {
+      "remote": "79.125.48.247:443",
+      "address": "79.125.48.247",
+      "port": 443,
+      "reverseDns": "ec2-79-125-48-247.eu-west-1.compute.amazonaws.com",
+      "status": "observed_dynasty_rotated_https",
+      "firstSeen": "2026-07-05",
+      "description": "CFB27-owned HTTPS node observed in the unblocked main menu to Dynasty trace."
+    },
+    {
+      "remote": "100.49.61.237:443",
+      "address": "100.49.61.237",
+      "port": 443,
+      "reverseDns": "ec2-100-49-61-237.compute-1.amazonaws.com",
+      "status": "observed_dynasty_rotated_https",
+      "firstSeen": "2026-07-05",
+      "description": "Short-lived CFB27-owned HTTPS node observed in a blocked main menu to Dynasty trace."
+    },
+    {
+      "remote": "162.247.241.2:443",
+      "address": "162.247.241.2",
+      "port": 443,
+      "reverseDns": "",
+      "status": "observed_advance_unblocked_https",
+      "firstSeen": "2026-07-05",
+      "description": "Short-lived CFB27-owned HTTPS node observed during the unblocked advance trace."
+    },
+    {
+      "remote": "18.97.44.79:15025",
+      "address": "18.97.44.79",
+      "port": 15025,
+      "reverseDns": "ec2-18-97-44-79.compute-1.amazonaws.com",
+      "status": "repeated_trial_main_menu_nonstandard_port",
+      "firstSeen": "2026-07-05",
+      "description": "CFB27 Trial-owned nonstandard-port connection observed in the Trial-aware main menu trace."
+    },
+    {
+      "remote": "18.97.44.47:15031",
+      "address": "18.97.44.47",
+      "port": 15031,
+      "reverseDns": "ec2-18-97-44-47.compute-1.amazonaws.com",
+      "status": "repeated_trial_diagnostics_online_flow_nonstandard_port",
+      "firstSeen": "2026-07-05",
+      "description": "Repeated CFB27 Trial-owned nonstandard-port connection observed in two diagnostics-assisted online flow traces."
+    },
+    {
+      "remote": "52.49.184.169:11000",
+      "address": "52.49.184.169",
+      "port": 11000,
+      "reverseDns": "ec2-52-49-184-169.eu-west-1.compute.amazonaws.com",
+      "status": "repeated_trial_main_menu_nonstandard_port",
+      "firstSeen": "2026-07-05",
+      "description": "CFB27 Trial-owned nonstandard-port connection observed in the Trial-aware main menu trace."
+    },
+    {
+      "remote": "99.80.0.98:10010",
+      "address": "99.80.0.98",
+      "port": 10010,
+      "reverseDns": "ec2-99-80-0-98.eu-west-1.compute.amazonaws.com",
+      "status": "repeated_trial_dynasty_nonstandard_port",
+      "firstSeen": "2026-07-05",
+      "description": "Repeated CFB27 Trial-owned nonstandard-port connection observed across main menu and Dynasty traces."
+    },
+    {
+      "remote": "5.60.70.248:15037",
+      "address": "5.60.70.248",
+      "port": 15037,
+      "reverseDns": "ec2-5-60-70-248.compute-1.amazonaws.com",
+      "status": "repeated_trial_dynasty_nonstandard_port",
+      "firstSeen": "2026-07-05",
+      "description": "Repeated CFB27 Trial-owned nonstandard-port connection observed while blocked candidates were active and Dynasty still loaded."
+    },
+    {
+      "remote": "32.193.17.54:443",
+      "address": "32.193.17.54",
+      "port": 443,
+      "reverseDns": "ec2-32-193-17-54.compute-1.amazonaws.com",
+      "status": "observed_trial_main_menu_https",
+      "firstSeen": "2026-07-05",
+      "description": "CFB27 Trial-owned HTTPS node observed in the Trial-aware main menu trace."
+    },
+    {
+      "remote": "52.5.193.215:443",
+      "address": "52.5.193.215",
+      "port": 443,
+      "reverseDns": "ec2-52-5-193-215.compute-1.amazonaws.com",
+      "status": "observed_trial_main_menu_https",
+      "firstSeen": "2026-07-05",
+      "description": "CFB27 Trial-owned HTTPS node observed in the Trial-aware main menu trace."
+    },
+    {
+      "remote": "100.56.133.243:443",
+      "address": "100.56.133.243",
+      "port": 443,
+      "reverseDns": "ec2-100-56-133-243.compute-1.amazonaws.com",
+      "status": "repeated_trial_dynasty_https",
+      "firstSeen": "2026-07-05",
+      "description": "Repeated CFB27 Trial-owned HTTPS node observed while blocked candidates were active and Dynasty still loaded."
+    },
+    {
+      "remote": "100.57.235.181:443",
+      "address": "100.57.235.181",
+      "port": 443,
+      "reverseDns": "ec2-100-57-235-181.compute-1.amazonaws.com",
+      "status": "repeated_trial_dynasty_https",
+      "firstSeen": "2026-07-05",
+      "description": "Repeated CFB27 Trial-owned HTTPS node observed while blocked candidates were active and Dynasty still loaded."
+    },
+    {
+      "remote": "35.169.93.114:443",
+      "address": "35.169.93.114",
+      "port": 443,
+      "reverseDns": "ec2-35-169-93-114.compute-1.amazonaws.com",
+      "status": "repeated_trial_dynasty_https",
+      "firstSeen": "2026-07-05",
+      "description": "Repeated CFB27 Trial-owned HTTPS node observed while blocked candidates were active and Dynasty still loaded."
+    },
+    {
+      "remote": "34.237.33.137:443",
+      "address": "34.237.33.137",
+      "port": 443,
+      "reverseDns": "ec2-34-237-33-137.compute-1.amazonaws.com",
+      "status": "observed_trial_dynasty_https",
+      "firstSeen": "2026-07-05",
+      "description": "CFB27 Trial-owned HTTPS node observed while blocked candidates were active and Dynasty still loaded."
+    },
+    {
+      "remote": "18.233.181.49:443",
+      "address": "18.233.181.49",
+      "port": 443,
+      "reverseDns": "ec2-18-233-181-49.compute-1.amazonaws.com",
+      "status": "observed_trial_dynasty_https",
+      "firstSeen": "2026-07-05",
+      "description": "Short-lived CFB27 Trial-owned HTTPS node observed while blocked candidates were active and Dynasty still loaded."
+    },
+    {
+      "remote": "5.60.70.202:15013",
+      "address": "5.60.70.202",
+      "port": 15013,
+      "reverseDns": "ec2-5-60-70-202.compute-1.amazonaws.com",
+      "status": "repeated_trial_press_start_presence_nonstandard_port",
+      "firstSeen": "2026-07-05",
+      "description": "Repeated CFB27 Trial-owned nonstandard-port connection observed during a normal EA-launched Press Start online-presence trace."
+    },
+    {
+      "remote": "52.211.83.198:443",
+      "address": "52.211.83.198",
+      "port": 443,
+      "reverseDns": "ec2-52-211-83-198.eu-west-1.compute.amazonaws.com",
+      "status": "repeated_trial_press_start_presence_leaderboards_https",
+      "firstSeen": "2026-07-05",
+      "description": "Repeated CFB27 Trial-owned HTTPS connection observed during a normal EA-launched Press Start trace; matched the EA leaderboards v2 catalog host."
+    },
+    {
+      "remote": "34.203.162.209:443",
+      "address": "34.203.162.209",
+      "port": 443,
+      "reverseDns": "ec2-34-203-162-209.compute-1.amazonaws.com",
+      "status": "repeated_trial_press_start_presence_https",
+      "firstSeen": "2026-07-05",
+      "description": "Repeated CFB27 Trial-owned HTTPS node observed during a normal EA-launched Press Start online-presence trace."
+    },
+    {
+      "remote": "23.22.70.77:443",
+      "address": "23.22.70.77",
+      "port": 443,
+      "reverseDns": "ec2-23-22-70-77.compute-1.amazonaws.com",
+      "status": "observed_trial_press_start_presence_short_https",
+      "firstSeen": "2026-07-05",
+      "description": "Short-lived CFB27 Trial-owned HTTPS node observed once during the normal EA-launched Press Start online-presence trace."
+    },
+    {
+      "remote": "23.22.151.50:443",
+      "address": "23.22.151.50",
+      "port": 443,
+      "reverseDns": "ec2-23-22-151-50.compute-1.amazonaws.com",
+      "status": "observed_trial_diagnostics_online_flow_https",
+      "firstSeen": "2026-07-05",
+      "description": "CFB27 Trial-owned HTTPS node observed late in the second diagnostics-assisted online flow trace."
+    },
+    {
+      "remote": "5.60.70.149:15103",
+      "address": "5.60.70.149",
+      "port": 15103,
+      "reverseDns": "ec2-5-60-70-149.compute-1.amazonaws.com",
+      "status": "repeated_trial_press_start_to_dynasty_nonstandard_port",
+      "firstSeen": "2026-07-05",
+      "description": "Repeated CFB27 Trial-owned nonstandard-port connection observed during a normal EA-launched Press Start through Dynasty trace."
+    },
+    {
+      "remote": "52.215.171.88:10010",
+      "address": "52.215.171.88",
+      "port": 10010,
+      "reverseDns": "ec2-52-215-171-88.eu-west-1.compute.amazonaws.com",
+      "status": "repeated_trial_press_start_to_dynasty_nonstandard_port",
+      "firstSeen": "2026-07-05",
+      "description": "Repeated CFB27 Trial-owned nonstandard-port connection observed during a normal EA-launched Press Start through Dynasty trace."
+    },
+    {
+      "remote": "99.83.166.42:443",
+      "address": "99.83.166.42",
+      "port": 443,
+      "reverseDns": "a12a50e7ce5e2429b.awsglobalaccelerator.com",
+      "status": "repeated_trial_press_start_to_dynasty_global_accelerator_https",
+      "firstSeen": "2026-07-05",
+      "description": "Repeated CFB27 Trial-owned AWS Global Accelerator HTTPS connection observed during a normal EA-launched Press Start through Dynasty trace."
+    },
+    {
+      "remote": "100.57.189.155:443",
+      "address": "100.57.189.155",
+      "port": 443,
+      "reverseDns": "ec2-100-57-189-155.compute-1.amazonaws.com",
+      "status": "repeated_trial_press_start_to_dynasty_https",
+      "firstSeen": "2026-07-05",
+      "description": "Repeated CFB27 Trial-owned HTTPS node observed during a normal EA-launched Press Start through Dynasty trace."
+    },
+    {
+      "remote": "34.245.246.118:443",
+      "address": "34.245.246.118",
+      "port": 443,
+      "reverseDns": "ec2-34-245-246-118.eu-west-1.compute.amazonaws.com",
+      "status": "repeated_trial_press_start_to_dynasty_https",
+      "firstSeen": "2026-07-05",
+      "description": "Repeated CFB27 Trial-owned HTTPS node observed during a normal EA-launched Press Start through Dynasty trace."
+    },
+    {
+      "remote": "52.72.96.128:443",
+      "address": "52.72.96.128",
+      "port": 443,
+      "reverseDns": "ec2-52-72-96-128.compute-1.amazonaws.com",
+      "status": "repeated_trial_press_start_to_dynasty_https",
+      "firstSeen": "2026-07-05",
+      "description": "Repeated CFB27 Trial-owned HTTPS node observed during a normal EA-launched Press Start through Dynasty trace."
+    },
+    {
+      "remote": "5.60.70.133:15007",
+      "address": "5.60.70.133",
+      "port": 15007,
+      "reverseDns": "ec2-5-60-70-133.compute-1.amazonaws.com",
+      "status": "observed_trial_diagnostics_signin_to_dynasty_nonstandard_port",
+      "firstSeen": "2026-07-05",
+      "description": "CFB27 Trial-owned nonstandard-port connection observed during a normal EA-launched sign-in through Dynasty trace while Cypress diagnostics were running."
+    },
+    {
+      "remote": "52.70.109.117:443",
+      "address": "52.70.109.117",
+      "port": 443,
+      "reverseDns": "ec2-52-70-109-117.compute-1.amazonaws.com",
+      "status": "observed_trial_diagnostics_signin_to_dynasty_https",
+      "firstSeen": "2026-07-05",
+      "description": "CFB27 Trial-owned HTTPS node observed during a normal EA-launched sign-in through Dynasty trace while Cypress diagnostics were running."
     }
   ],
   "notes": [
-    "These are proven process-owned CFB27 remotes, not confirmed protocol endpoints.",
-    "Do not redirect blindly; TLS/SNI/certificate behavior must be identified first.",
-    "The local gateway/logger is for controlled redirect experiments only."
+    "These are process-owned CFB27 remotes observed during main menu to loaded Dynasty traces, not confirmed protocol endpoints.",
+    "The observed_blocked_dynasty_loading_* entries appeared during a controlled block test that left Dynasty on a permanent loading screen; treat them as fallback or follow-up candidates until repeated.",
+    "The repeated_dynasty_rotated_* entries appeared when the older candidate set was blocked and CFB27 still loaded Dynasty, indicating endpoint rotation/failover.",
+    "The repeated_trial_* entries came from Trial-aware traces against CollegeFB27_Trial.exe and show another rotation cluster/failover set.",
+    "The repeated_trial_press_start_presence_* entries came from a normal EA-launched CollegeFB27_Trial.exe Press Start trace and are likely online presence/login service dependencies, not proof of Dynasty hosting traffic.",
+    "The repeated_trial_press_start_to_dynasty_* entries came from a normal EA-launched CollegeFB27_Trial.exe Press Start through Dynasty trace and are the strongest current candidates for the complete online flow.",
+    "The repeated_trial_diagnostics_online_flow_* entries came from diagnostics-assisted traces with local Cypress services running while the game itself was launched normally.",
+    "Known telemetry/CDN/identity/TOS entries such as 100.56.194.93:443, 23.61.2.191:443, 23.220.162.132:443, 23.192.146.155:443, 184.29.30.190:443, and 54.227.239.228:443 are intentionally excluded from the block-candidate list unless later tests prove they gate Online Dynasty.",
+    "Use Block Candidates only for controlled tests, and run CypressLauncher.exe as administrator so Windows Firewall rules can be created.",
+    "Click Unblock immediately after each controlled block test.",
+    "Local entries such as 127.0.0.1:3216, 127.0.0.1:3217, UDP *:*, and 192.168.1.205:80 SYN_SENT are intentionally excluded."
   ]
 }

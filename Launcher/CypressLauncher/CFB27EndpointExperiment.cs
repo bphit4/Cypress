@@ -17,9 +17,39 @@ internal sealed class CFB27EndpointExperiment
 	private const string RulePrefix = "Cypress CFB27 Candidate Block";
 	private readonly Func<string> _appDataRoot;
 
+	// A Windows ETL trace is a global, machine-wide session: if the launcher exits or
+	// crashes while one is running, it keeps capturing and degrades networking for the
+	// whole PC until "netsh trace stop" is run. Track any active session and guarantee
+	// it is stopped on process exit as a backstop for the try/finally below.
+	private static int s_traceActive = 0;
+	private static int s_exitHookInstalled = 0;
+
 	public CFB27EndpointExperiment(Func<string> appDataRoot)
 	{
 		_appDataRoot = appDataRoot;
+		if (System.Threading.Interlocked.Exchange(ref s_exitHookInstalled, 1) == 0)
+			AppDomain.CurrentDomain.ProcessExit += static (_, _) => StopTraceIfActiveOnExit();
+	}
+
+	private static void StopTraceIfActiveOnExit()
+	{
+		if (System.Threading.Interlocked.Exchange(ref s_traceActive, 0) == 0)
+			return;
+		try
+		{
+			// Synchronous, best-effort stop during shutdown; the async path is unavailable here.
+			using var proc = Process.Start(new ProcessStartInfo
+			{
+				FileName = "netsh.exe",
+				UseShellExecute = false,
+				CreateNoWindow = true,
+				RedirectStandardOutput = true,
+				RedirectStandardError = true,
+				ArgumentList = { "trace", "stop" }
+			});
+			proc?.WaitForExit(15000);
+		}
+		catch { }
 	}
 
 	public string Root => Path.Combine(_appDataRoot(), "Diagnostics", "CFB27");
@@ -33,6 +63,7 @@ internal sealed class CFB27EndpointExperiment
 		string etlPath = Path.Combine(runDir, "cfb27-netsh.etl");
 		string logPath = Path.Combine(runDir, "trace.log");
 
+		bool started = false;
 		try
 		{
 			var start = await RunProcessAsync("netsh.exe", new[]
@@ -48,9 +79,14 @@ internal sealed class CFB27EndpointExperiment
 			if (start.ExitCode != 0)
 				return new CFB27ExperimentResult(false, runId, runDir, "Failed to start Windows network trace.", start.StdErr + start.StdOut);
 
+			started = true;
+			System.Threading.Interlocked.Exchange(ref s_traceActive, 1);
+
 			await Task.Delay(TimeSpan.FromSeconds(seconds));
 
 			var stop = await RunProcessAsync("netsh.exe", new[] { "trace", "stop" });
+			started = false;
+			System.Threading.Interlocked.Exchange(ref s_traceActive, 0);
 			await File.AppendAllTextAsync(logPath, "STOP\r\n" + stop.ToText() + "\r\n");
 			WriteJson(Path.Combine(runDir, "summary.json"), new JObject
 			{
@@ -67,9 +103,16 @@ internal sealed class CFB27EndpointExperiment
 		}
 		catch (Exception ex)
 		{
-			try { await RunProcessAsync("netsh.exe", new[] { "trace", "stop" }); } catch { }
 			await File.WriteAllTextAsync(Path.Combine(runDir, "trace-error.txt"), ex.ToString());
 			return new CFB27ExperimentResult(false, runId, runDir, "Windows network trace failed.", ex.Message);
+		}
+		finally
+		{
+			if (started)
+			{
+				try { await RunProcessAsync("netsh.exe", new[] { "trace", "stop" }); } catch { }
+				System.Threading.Interlocked.Exchange(ref s_traceActive, 0);
+			}
 		}
 	}
 

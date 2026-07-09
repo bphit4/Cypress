@@ -7,6 +7,7 @@
 
 # Build outputs
 build/
+dist/
 **/bin/
 **/obj/
 **/publish/
@@ -29,6 +30,10 @@ __pycache__/
 
 # Debug/temp
 _debug_bundle.js
+*.rar
+Launcher/*.dll
+install-cfb27-elevated.ps1
+install-cfb27-result.txt
 
 # Go build artifacts & runtime data
 tools/cypress-servers/*.exe

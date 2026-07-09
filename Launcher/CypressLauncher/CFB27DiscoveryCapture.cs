@@ -32,6 +32,7 @@ internal sealed record CFB27EndpointTraceResult(bool Ok, string RunId, string Ru
 
 internal sealed class CFB27DiscoveryCapture
 {
+	private static readonly string[] s_cfb27ProcessNames = { "CollegeFB27", "CollegeFB27_Trial" };
 	private readonly HttpClient _httpClient;
 	private readonly Func<string> _appDataRoot;
 
@@ -62,7 +63,7 @@ internal sealed class CFB27DiscoveryCapture
 			for (int i = 0; i < seconds; i++)
 			{
 				string timestamp = DateTime.UtcNow.ToString("o");
-				var pids = Process.GetProcessesByName("CollegeFB27")
+				var pids = GetLiveCFB27Processes()
 					.Select(p => p.Id)
 					.ToHashSet();
 				if (pids.Count == 0)
@@ -71,7 +72,7 @@ internal sealed class CFB27DiscoveryCapture
 					{
 						["timestamp"] = timestamp,
 						["type"] = "process",
-						["message"] = "CollegeFB27 not running"
+						["message"] = "CollegeFB27/CollegeFB27_Trial not running"
 					});
 					await Task.Delay(1000);
 					continue;
@@ -706,7 +707,7 @@ internal sealed class CFB27DiscoveryCapture
 	private static JArray CaptureLiveCFB27Processes()
 	{
 		var processes = new JArray();
-		foreach (var p in Process.GetProcessesByName("CollegeFB27").OrderBy(p => p.Id))
+		foreach (var p in GetLiveCFB27Processes().OrderBy(p => p.Id))
 		{
 			var item = new JObject
 			{
@@ -723,6 +724,15 @@ internal sealed class CFB27DiscoveryCapture
 		return processes;
 	}
 
+	private static IEnumerable<Process> GetLiveCFB27Processes()
+	{
+		foreach (string processName in s_cfb27ProcessNames)
+		{
+			foreach (var process in Process.GetProcessesByName(processName))
+				yield return process;
+		}
+	}
+
 	private static string BuildSummary(string runId, JObject evidence, JObject services, IReadOnlyCollection<CFB27CaptureInstance> instances)
 	{
 		string ServiceLine(string key)
@@ -736,7 +746,7 @@ internal sealed class CFB27DiscoveryCapture
 		string LiveProcessLines()
 		{
 			if (liveProcesses.Count == 0)
-				return "- No live CollegeFB27.exe process was visible to the launcher.";
+				return "- No live CollegeFB27.exe or CollegeFB27_Trial.exe process was visible to the launcher.";
 			return string.Join(Environment.NewLine, liveProcesses
 				.OfType<JObject>()
 				.Select(p => $"- PID {p["pid"]}, responding={p["responding"] ?? "n/a"}, title=`{p["mainWindowTitle"] ?? ""}`"));

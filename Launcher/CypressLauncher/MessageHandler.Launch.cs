@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 
@@ -68,7 +69,7 @@ public partial class MessageHandler
 
 		SaveCurrentFormData(msg);
 
-		string exeName = s_gameToExecutableName[m_selectedGame];
+		string exeName = ResolveGameExecutableName(m_selectedGame, m_gameDirectory);
 		bool failed = false;
 		if (!IsCFB27(m_selectedGame) && GameRequiresPatchedExe(Path.Combine(m_gameDirectory, exeName), ref failed) && !failed)
 		{
@@ -96,9 +97,64 @@ public partial class MessageHandler
 
 		// use nickname as in-game name if set, otherwise use the username field
 		string inGameName = !string.IsNullOrWhiteSpace(m_identityNickname) ? m_identityNickname : username;
-		string launchArgs = IsCFB27(m_selectedGame)
-			? BuildCFB27ClientLaunchArgs(inGameName, serverIPWithPort)
-			: $"-playerName \"{inGameName}\" -console -Client.ServerIp {serverIPWithPort} -allowMultipleInstances -RenderDevice.IntelMinDriverVersion 0.0";
+
+		if (IsCFB27(m_selectedGame))
+		{
+			// Joining also needs the local Blaze bridge + dynasty stack running before the
+			// game's pre-Press-Start connect, so bring it up the same off-thread way as
+			// hosting (see OnStartServer) to keep the launcher window responsive.
+			if (Interlocked.CompareExchange(ref m_cfb27LaunchInProgress, 1, 0) != 0)
+			{
+				SendStatus("A CFB27 launch is already in progress.", "info");
+				return;
+			}
+
+			string profile = !string.IsNullOrWhiteSpace(m_identityNickname) ? m_identityNickname : "LocalPlayer";
+			string capturedExeName = exeName;
+			string capturedInGameName = inGameName;
+			string capturedServerAddress = serverIPWithPort;
+			string capturedServerPassword = serverPassword;
+			string capturedFovStr = fovStr;
+			string capturedAdditionalArgs = additionalArgs;
+
+			_ = Task.Run(() =>
+			{
+				try
+				{
+					EnsureCFB27PrivateStackAsync(profile).GetAwaiter().GetResult();
+
+					string cfbArgs = BuildCFB27ClientLaunchArgs(capturedInGameName, capturedServerAddress);
+					if (!string.IsNullOrWhiteSpace(capturedServerPassword))
+						cfbArgs += " -password " + capturedServerPassword;
+					if (!string.IsNullOrWhiteSpace(capturedFovStr) && double.TryParse(capturedFovStr, out double joinFov))
+						cfbArgs += " -Render.FovMultiplier " + (joinFov / 70.0).ToString();
+					if (!string.IsNullOrWhiteSpace(capturedAdditionalArgs))
+						cfbArgs += " " + capturedAdditionalArgs;
+
+					Environment.SetEnvironmentVariable("GW_LAUNCH_ARGS", cfbArgs);
+					if (m_identityJwt == null) LoadIdentityFromDisk();
+					m_identityKey ??= LoadOrCreateIdentityKey();
+					Environment.SetEnvironmentVariable("CYPRESS_IDENTITY_JWT", m_identityJwt);
+					Environment.SetEnvironmentVariable("CYPRESS_IDENTITY_KEY", GetIdentityPrivateKeyHex());
+					if (!CopyServerDLL())
+						return;
+
+					LaunchGame(capturedExeName, cfbArgs);
+				}
+				catch (Exception ex)
+				{
+					SendStatus("Failed to start the CFB27 private stack: " + ex.Message, "error");
+				}
+				finally
+				{
+					Interlocked.Exchange(ref m_cfb27LaunchInProgress, 0);
+				}
+			});
+			return;
+		}
+
+		string launchArgs =
+			$"-playerName \"{inGameName}\" -console -Client.ServerIp {serverIPWithPort} -allowMultipleInstances -RenderDevice.IntelMinDriverVersion 0.0";
 		if (!string.IsNullOrWhiteSpace(serverPassword))
 			launchArgs += " -password " + serverPassword;
 		if (!IsCFB27(m_selectedGame) && s_specialLaunchArgsForGame.TryGetValue(m_selectedGame, out string? specialArgs))
@@ -191,7 +247,7 @@ public partial class MessageHandler
 
 		SaveCurrentFormData(msg);
 
-		string exeName = s_gameToExecutableName[m_selectedGame];
+		string exeName = ResolveGameExecutableName(m_selectedGame, m_gameDirectory);
 		bool failed = false;
 		if (!isCFB27 && GameRequiresPatchedExe(Path.Combine(m_gameDirectory, exeName), ref failed) && !failed)
 		{
@@ -208,17 +264,65 @@ public partial class MessageHandler
 		Environment.SetEnvironmentVariable("GAME_DATA_DIR", useMod ? Path.Combine(m_gameDirectory, "ModData", modPack) : null);
 		bool playlistFlag = usePlaylist && !string.IsNullOrEmpty(playlist);
 
-		string launchArgs;
 		if (isCFB27)
 		{
+			// The CFB27 private stack (dynasty + Blaze bridge) can take many seconds to
+			// become healthy. Run the whole ensure-stack-then-launch sequence on a
+			// background thread so the launcher window keeps pumping messages instead of
+			// freezing (and showing "Not Responding") while it waits. Mirrors the
+			// Task.Run pattern used by OnCFB27Diagnostics.
+			if (Interlocked.CompareExchange(ref m_cfb27LaunchInProgress, 1, 0) != 0)
+			{
+				SendStatus("A CFB27 launch is already in progress.", "info");
+				return;
+			}
+
+			string profile = !string.IsNullOrWhiteSpace(m_identityNickname)
+				? m_identityNickname
+				: "LocalPlayer";
 			string sessionName = ((string?)msg["serverName"]) ?? "CFB27 Dynasty";
-			launchArgs = BuildCFB27ServerLaunchArgs(deviceIP, sessionName);
-			if (!string.IsNullOrWhiteSpace(serverAdditionalArgs))
-				launchArgs += " " + serverAdditionalArgs;
-			if (!string.IsNullOrWhiteSpace(playerCount))
-				launchArgs += " -Network.MaxClientCount " + playerCount;
+			string capturedExeName = exeName;
+			string capturedDeviceIP = deviceIP;
+			string capturedServerAdditionalArgs = serverAdditionalArgs;
+			string capturedPlayerCount = playerCount;
+			string capturedLevel = level;
+
+			_ = Task.Run(() =>
+			{
+				try
+				{
+					EnsureCFB27PrivateStackAsync(profile).GetAwaiter().GetResult();
+
+					string cfbArgs = BuildCFB27ServerLaunchArgs(capturedDeviceIP, sessionName);
+					if (!string.IsNullOrWhiteSpace(capturedServerAdditionalArgs))
+						cfbArgs += " " + capturedServerAdditionalArgs;
+					if (!string.IsNullOrWhiteSpace(capturedPlayerCount))
+						cfbArgs += " -Network.MaxClientCount " + capturedPlayerCount;
+
+					Environment.SetEnvironmentVariable("GW_LAUNCH_ARGS", cfbArgs);
+					if (m_identityJwt == null) LoadIdentityFromDisk();
+					m_identityKey ??= LoadOrCreateIdentityKey();
+					Environment.SetEnvironmentVariable("CYPRESS_IDENTITY_JWT", m_identityJwt);
+					Environment.SetEnvironmentVariable("CYPRESS_IDENTITY_KEY", GetIdentityPrivateKeyHex());
+					if (!CopyServerDLL())
+						return;
+
+					LaunchGame(capturedExeName, cfbArgs, isServer: true, level: capturedLevel, msg: msg);
+				}
+				catch (Exception ex)
+				{
+					SendStatus("Failed to start the CFB27 private stack: " + ex.Message, "error");
+				}
+				finally
+				{
+					Interlocked.Exchange(ref m_cfb27LaunchInProgress, 0);
+				}
+			});
+			return;
 		}
-		else if (m_selectedGame < PVZGame.BFN)
+
+		string launchArgs;
+		if (m_selectedGame < PVZGame.BFN)
 		{
 			launchArgs = $"-server -level {level} -listen {deviceIP} -inclusion {inclusion} -allowMultipleInstances -Network.ServerAddress {deviceIP}";
 			if (!string.IsNullOrWhiteSpace(loadScreenGameMode))
@@ -274,6 +378,61 @@ public partial class MessageHandler
 		string srcPath = GetServerDLLPath();
 		string destPath = Path.Combine(m_gameDirectory, s_destDLLName);
 
+		if (!PatchManager.SameFileContentsSafe(srcPath, destPath))
+		{
+			try
+			{
+				File.Copy(srcPath, destPath, overwrite: true);
+			}
+			catch (IOException) when (File.Exists(destPath))
+			{
+				SendStatus("failed to update dinput8.dll because the game is still using an older one.", "error");
+				return false;
+			}
+			catch (UnauthorizedAccessException)
+			{
+				if (!TryCopyFileElevated(srcPath, destPath, "DLL"))
+					return false;
+			}
+			catch (Exception ex)
+			{
+				SendStatus("Failed to copy DLL: " + ex.Message, "error");
+				return false;
+			}
+		}
+
+		return !IsCFB27(m_selectedGame) || CopyCFB27EndpointManifest();
+	}
+
+	private string? FindCFB27EndpointManifestPath()
+	{
+		var candidates = new List<string>
+		{
+			Path.Combine(AppContext.BaseDirectory, "cfb27-endpoints.json"),
+			Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "cfb27-endpoints.json"))
+		};
+
+		try
+		{
+			string root = FindCypressRoot();
+			candidates.Add(Path.Combine(root, "cfb27-endpoints.json"));
+			candidates.Add(Path.Combine(root, "tools", "cypress-servers", "deploy", "cfb27-endpoints.example.json"));
+		}
+		catch { }
+
+		return candidates.FirstOrDefault(File.Exists);
+	}
+
+	private bool CopyCFB27EndpointManifest()
+	{
+		string? srcPath = FindCFB27EndpointManifestPath();
+		if (string.IsNullOrWhiteSpace(srcPath))
+		{
+			SendStatus("CFB27 endpoint manifest not found; cannot enable local endpoint redirect.", "error");
+			return false;
+		}
+
+		string destPath = Path.Combine(m_gameDirectory, "cfb27-endpoints.json");
 		if (PatchManager.SameFileContentsSafe(srcPath, destPath))
 			return true;
 
@@ -282,18 +441,13 @@ public partial class MessageHandler
 			File.Copy(srcPath, destPath, overwrite: true);
 			return true;
 		}
-		catch (IOException) when (File.Exists(destPath))
-		{
-			SendStatus("failed to update dinput8.dll because the game is still using an older one.", "error");
-			return false;
-		}
 		catch (UnauthorizedAccessException)
 		{
-			return TryCopyDllElevated(srcPath, destPath);
+			return TryCopyFileElevated(srcPath, destPath, "endpoint manifest");
 		}
 		catch (Exception ex)
 		{
-			SendStatus("Failed to copy DLL: " + ex.Message, "error");
+			SendStatus("Failed to copy CFB27 endpoint manifest: " + ex.Message, "error");
 			return false;
 		}
 	}
@@ -317,16 +471,16 @@ public partial class MessageHandler
 		});
 	}
 
-	private bool TryCopyDllElevated(string src, string dest)
+	private bool TryCopyFileElevated(string src, string dest, string label)
 	{
 		if (PatchManager.IsWine())
 		{
-			SendStatus("Failed to copy DLL: access denied. Try moving the game outside of Program Files.", "error");
+			SendStatus($"Failed to copy {label}: access denied. Try moving the game outside of Program Files.", "error");
 			return false;
 		}
 		try
 		{
-			SendStatus("Copying DLL requires administrator permission. Please approve the prompt.", "info");
+			SendStatus($"Copying {label} requires administrator permission. Please approve the prompt.", "info");
 			var startInfo = new ProcessStartInfo
 			{
 				FileName = "cmd.exe",
@@ -338,12 +492,12 @@ public partial class MessageHandler
 			var process = System.Diagnostics.Process.Start(startInfo);
 			process?.WaitForExit();
 			if (process?.ExitCode == 0) return true;
-			SendStatus("Failed to copy DLL (elevated, code: " + process?.ExitCode.ToString("X") + ")", "error");
+			SendStatus($"Failed to copy {label} (elevated, code: " + process?.ExitCode.ToString("X") + ")", "error");
 			return false;
 		}
 		catch (Exception ex)
 		{
-			SendStatus("Failed to copy DLL: " + ex.Message, "error");
+			SendStatus($"Failed to copy {label}: " + ex.Message, "error");
 			return false;
 		}
 	}
@@ -480,7 +634,19 @@ public partial class MessageHandler
 			startInfo.Environment["CYPRESS_CFB27_DISCOVERY"] = "1";
 			startInfo.Environment["CYPRESS_CFB27_LAUNCH_ARGS"] = args;
 			startInfo.Environment["CYPRESS_CFB27_DYNASTY_URL"] = "http://127.0.0.1:27910";
-			startInfo.Environment["CYPRESS_CFB27_DYNASTY_PROFILE"] = ((string?)msg?["dynastyProfile"]) ?? "default";
+			startInfo.Environment["CYPRESS_CFB27_DYNASTY_PROFILE"] = m_cfb27PrivateProfile;
+			startInfo.Environment["CYPRESS_CFB27_BLAZE_HOST"] = "127.0.0.1";
+			startInfo.Environment["CYPRESS_CFB27_BLAZE_PORT"] = "27920";
+			startInfo.Environment["CYPRESS_CFB27_PROFILE"] = m_cfb27PrivateProfile;
+			startInfo.Environment["CYPRESS_CFB27_RUN_DIR"] = string.IsNullOrWhiteSpace(m_cfb27PrivateRunDirectory)
+				? Path.Combine(GetAppdataDir(), "CFB27", "Private")
+				: m_cfb27PrivateRunDirectory;
+			string gameEndpointManifest = Path.Combine(m_gameDirectory, "cfb27-endpoints.json");
+			string? endpointManifest = File.Exists(gameEndpointManifest)
+				? gameEndpointManifest
+				: FindCFB27EndpointManifestPath();
+			if (!string.IsNullOrWhiteSpace(endpointManifest))
+				startInfo.Environment["CYPRESS_CFB27_ENDPOINTS_FILE"] = endpointManifest;
 		}
 
 		int sideChannelPort = 14638;
@@ -529,6 +695,7 @@ public partial class MessageHandler
 #endif
 		var process = new Process { StartInfo = startInfo };
 		string capturedGameDir = m_gameDirectory;
+		DateTime launchStartedAt = DateTime.Now;
 
 		try
 		{
@@ -586,6 +753,19 @@ public partial class MessageHandler
 			{
 				int exitCode = 0;
 				try { exitCode = process.ExitCode; } catch { }
+
+				if (launchedIsCFB27 && TryFindCFB27HandoffPid(pid, capturedGameDir, launchStartedAt, out int handoffPid))
+				{
+					string handoffLine = $"CFB27 launch process handed off from PID {pid} to PID {handoffPid}; launcher exit code 0x{exitCode:X}.";
+					try
+					{
+						Send(new JObject { ["type"] = "instanceOutput", ["pid"] = pid, ["line"] = handoffLine });
+						RecordCFB27Event(handoffLine);
+						SendStatus($"CFB27 launch handed off to PID {handoffPid}.", "info");
+					}
+					catch { }
+					return;
+				}
 
 				lock (m_instanceLock)
 				{
@@ -773,14 +953,68 @@ public partial class MessageHandler
 		}
 	}
 
+	private static bool TryFindCFB27HandoffPid(int exitedPid, string gameDirectory, DateTime launchStartedAt, out int handoffPid)
+	{
+		handoffPid = 0;
+		DateTime deadline = DateTime.UtcNow.AddSeconds(8);
+		DateTime earliestStart = launchStartedAt.AddSeconds(-10);
+		string gameDirFull = Path.GetFullPath(gameDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+		while (DateTime.UtcNow < deadline)
+		{
+			foreach (string exeName in s_cfb27ExecutableNames)
+			{
+				string processName = Path.GetFileNameWithoutExtension(exeName);
+				foreach (var proc in Process.GetProcessesByName(processName))
+				{
+					try
+					{
+						if (proc.Id == exitedPid || proc.HasExited)
+							continue;
+
+						try
+						{
+							if (proc.StartTime < earliestStart)
+								continue;
+						}
+						catch { }
+
+						try
+						{
+							string? path = proc.MainModule?.FileName;
+							if (!string.IsNullOrWhiteSpace(path))
+							{
+								string? dir = Path.GetDirectoryName(Path.GetFullPath(path));
+								if (!string.Equals(dir?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), gameDirFull, StringComparison.OrdinalIgnoreCase))
+									continue;
+							}
+						}
+						catch { }
+
+						handoffPid = proc.Id;
+						return true;
+					}
+					catch { }
+					finally
+					{
+						try { proc.Dispose(); } catch { }
+					}
+				}
+			}
+
+			Thread.Sleep(250);
+		}
+
+		return false;
+	}
 	private static string BuildCFB27ClientLaunchArgs(string playerName, string serverAddress)
 	{
-		return $"-playerName \"{playerName}\" -console -Client.ServerIp {serverAddress} -allowMultipleInstances -Online.Backend Backend_Local -Online.PeerBackend Backend_Local -Game.Platform GamePlatform_Win32";
+		return $"-playerName \"{playerName}\" -console -allowMultipleInstances -Game.Platform GamePlatform_Win32";
 	}
 
 	private static string BuildCFB27ServerLaunchArgs(string deviceIP, string sessionName)
 	{
-		return $"-listen {deviceIP} -allowMultipleInstances -Network.ServerAddress {deviceIP} -Online.Backend Backend_Local -Online.PeerBackend Backend_Local -Game.Platform GamePlatform_Win32 -name \"{sessionName}\"";
+		return $"-playerName \"LocalPlayer\" -console -allowMultipleInstances -Game.Platform GamePlatform_Win32 -name \"{sessionName}\"";
 	}
 
 #if WINDOWS

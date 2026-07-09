@@ -178,7 +178,7 @@ public partial class MessageHandler
 		}
 		else
 		{
-			SendStatus("Selected folder does not contain " + s_gameToExecutableName[m_selectedGame], "error");
+			SendStatus("Selected folder does not contain " + GetExpectedExecutableDescription(m_selectedGame), "error");
 		}
 #else
 		SendStatus("On Linux, set the game directory by editing launcherdata.json in your Cypress appdata folder, or use auto-find.", "info");
@@ -200,7 +200,7 @@ public partial class MessageHandler
 			if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK &&
 				!string.IsNullOrWhiteSpace(dialog.SelectedPath))
 			{
-				if (File.Exists(Path.Combine(dialog.SelectedPath, s_gameToExecutableName[m_selectedGame])))
+				if (DirectoryContainsGameExecutable(m_selectedGame, dialog.SelectedPath))
 					selected = dialog.SelectedPath;
 			}
 		});
@@ -232,7 +232,7 @@ public partial class MessageHandler
 		foreach (string basePath in searchPaths)
 		{
 			string candidate = Path.Combine(basePath, gameDirName);
-			if (Directory.Exists(candidate) && File.Exists(Path.Combine(candidate, s_gameToExecutableName[m_selectedGame])))
+			if (Directory.Exists(candidate) && DirectoryContainsGameExecutable(m_selectedGame, candidate))
 				return candidate;
 		}
 		return null;
@@ -256,14 +256,21 @@ public partial class MessageHandler
 			};
 			if (gameKey?.GetValue("Install Dir") is string path
 				&& Directory.Exists(path)
-				&& File.Exists(Path.Combine(path, s_gameToExecutableName[m_selectedGame])))
+				&& DirectoryContainsGameExecutable(m_selectedGame, path))
 				return path;
 		}
 		if (m_selectedGame == PVZGame.CFB27)
 		{
-			string cfb27Path = @"C:\Program Files\EA Games\EA SPORTS COLLEGE FOOTBALL 27 - EXTERNAL BETA (CTRE)";
-			if (Directory.Exists(cfb27Path) && File.Exists(Path.Combine(cfb27Path, s_gameToExecutableName[m_selectedGame])))
-				return cfb27Path;
+			string[] cfb27Paths =
+			{
+				@"C:\Program Files\EA Games\EA SPORTS College Football 27",
+				@"C:\Program Files\EA Games\EA SPORTS COLLEGE FOOTBALL 27 - EXTERNAL BETA (CTRE)"
+			};
+			foreach (string cfb27Path in cfb27Paths)
+			{
+				if (Directory.Exists(cfb27Path) && DirectoryContainsGameExecutable(m_selectedGame, cfb27Path))
+					return cfb27Path;
+			}
 		}
 		return null;
 	}
@@ -291,7 +298,7 @@ public partial class MessageHandler
 		foreach (string basePath in searchPaths)
 		{
 			string candidate = Path.Combine(basePath, gameDirName);
-			if (Directory.Exists(candidate) && File.Exists(Path.Combine(candidate, s_gameToExecutableName[m_selectedGame])))
+			if (Directory.Exists(candidate) && DirectoryContainsGameExecutable(m_selectedGame, candidate))
 			{
 				m_gameDirectory = candidate;
 				Send(new JObject { ["type"] = "gameDir", ["path"] = candidate });
@@ -322,7 +329,7 @@ public partial class MessageHandler
 
 			if (gameKey?.GetValue("Install Dir") is string path
 				&& Directory.Exists(path)
-				&& File.Exists(Path.Combine(path, s_gameToExecutableName[m_selectedGame])))
+				&& DirectoryContainsGameExecutable(m_selectedGame, path))
 			{
 				m_gameDirectory = path;
 				Send(new JObject { ["type"] = "gameDir", ["path"] = path });
@@ -332,13 +339,20 @@ public partial class MessageHandler
 		}
 		if (m_selectedGame == PVZGame.CFB27)
 		{
-			string cfb27Path = @"C:\Program Files\EA Games\EA SPORTS COLLEGE FOOTBALL 27 - EXTERNAL BETA (CTRE)";
-			if (Directory.Exists(cfb27Path) && File.Exists(Path.Combine(cfb27Path, s_gameToExecutableName[m_selectedGame])))
+			string[] cfb27Paths =
 			{
-				m_gameDirectory = cfb27Path;
-				Send(new JObject { ["type"] = "gameDir", ["path"] = cfb27Path });
-				SendStatus($"Found directory for {m_selectedGame}: {cfb27Path}", "success");
-				return;
+				@"C:\Program Files\EA Games\EA SPORTS College Football 27",
+				@"C:\Program Files\EA Games\EA SPORTS COLLEGE FOOTBALL 27 - EXTERNAL BETA (CTRE)"
+			};
+			foreach (string cfb27Path in cfb27Paths)
+			{
+				if (Directory.Exists(cfb27Path) && DirectoryContainsGameExecutable(m_selectedGame, cfb27Path))
+				{
+					m_gameDirectory = cfb27Path;
+					Send(new JObject { ["type"] = "gameDir", ["path"] = cfb27Path });
+					SendStatus($"Found directory for {m_selectedGame}: {cfb27Path}", "success");
+					return;
+				}
 			}
 		}
 		SendStatus("Could not automatically find directory", "error");
