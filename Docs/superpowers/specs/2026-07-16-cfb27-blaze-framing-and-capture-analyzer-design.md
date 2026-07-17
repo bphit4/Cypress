@@ -20,12 +20,13 @@ layout:
 | Offset | Size | Field |
 | --- | ---: | --- |
 | `0x00` | 4 | Big-endian payload length |
-| `0x04` | 2 | Big-endian reserved value |
+| `0x04` | 2 | Big-endian metadata length |
 | `0x06` | 2 | Big-endian component ID |
 | `0x08` | 2 | Big-endian command ID |
-| `0x0A` | 2 | Big-endian error code |
-| `0x0C` | 1 | Message type and user-index metadata |
-| `0x0D` | 3 | Big-endian 24-bit message ID |
+| `0x0A` | 3 | Big-endian 24-bit message ID |
+| `0x0D` | 1 | 3-bit message type and 5-bit user index |
+| `0x0E` | 1 | Options |
+| `0x0F` | 1 | Reserved |
 | `0x10` | N | TDF payload |
 
 The captured authentication login begins with:
@@ -65,18 +66,20 @@ cannot route to the existing authentication handler.
 
 ## Codec Design
 
-`blaze.Header` gains `Reserved uint16`. The existing fields remain available
-to callers. The metadata byte is packed as two four-bit values: message type
-in the high nibble and user index in the low nibble. The message ID is encoded
-as an unsigned, big-endian 24-bit integer in bytes `0x0D` through `0x0F`.
+`blaze.Header` gains metadata size, options, and reserved fields. The existing
+fields remain available to callers. Message type occupies the upper three bits
+of byte `0x0D`, and user index occupies its lower five bits. The message ID is
+encoded as an unsigned, big-endian 24-bit integer in bytes `0x0A` through
+`0x0C`, matching EA's supplied `Fire2Frame` implementation.
 
-The decoder accepts every reserved value and returns it to the caller. The
-encoder writes the caller-provided reserved value. This is lossless and avoids
-claiming that zero is the only valid value before more captures are available.
+The decoder accepts every reserved byte and returns it to the caller. Fire2
+metadata precedes the payload and carries error codes and other context. The
+codec preserves raw metadata and maps the standard `ERRC` field to the existing
+logical error-code property.
 
 The decoder retains the existing 16 MiB payload limit. The encoder returns a
-specific error for a message type or user index greater than `0x0F`, or a
-message ID greater than `0xFFFFFF`.
+specific error for a message type greater than `7`, user index greater than
+`31`, or a message ID greater than `0xFFFFFF`.
 
 ## Capture Analyzer Design
 
