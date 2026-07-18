@@ -90,6 +90,36 @@ namespace
 			else
 				s_log.Write("ProtoSSL runtime code byte dump disabled by configuration");
 
+			if (config.enableProtoSslVerifyProbe)
+			{
+				if (!Cypress::CFB27::InstallProtoSslVerifyProbe(s_log))
+					s_log.Write("ProtoSSL verify probe was not installed");
+			}
+			else
+			{
+				s_log.Write("ProtoSSL verify probe disabled by configuration");
+			}
+
+			if (config.enableCertVerifyHook)
+			{
+				if (!Cypress::CFB27::InstallCertVerifyHook(s_log, config.certVerifyForce))
+					s_log.Write("cert-verify hook was not installed");
+			}
+			else
+			{
+				s_log.Write("cert-verify hook disabled by configuration");
+			}
+
+			if (config.enableFailStateWatch)
+			{
+				if (!Cypress::CFB27::InstallFailStateWatch(s_log))
+					s_log.Write("fail-state watch was not installed");
+			}
+			else
+			{
+				s_log.Write("fail-state watch disabled by configuration");
+			}
+
 			Cypress::CFB27::LogRuntimeRedirectorReferences(s_log);
 			s_log.Write("CFB27 bridge bootstrap completed");
 			return 0;

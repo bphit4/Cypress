@@ -150,6 +150,34 @@ namespace
 				"candidate endpoint parser should preserve host-order IPv4 and port");
 		}
 	}
+
+	void TestRedirectedSocketDiagnosticTracking()
+	{
+		constexpr std::uintptr_t socket = 0xC0FFEE;
+		Check(
+			!Cypress::CFB27::IsRedirectedSocketForDiagnostics(socket),
+			"unregistered socket should not be traced");
+		Cypress::CFB27::RegisterRedirectedSocketForDiagnostics(socket, "test redirect");
+		Check(
+			Cypress::CFB27::IsRedirectedSocketForDiagnostics(socket),
+			"redirected socket should be traced");
+		Cypress::CFB27::UnregisterRedirectedSocketForDiagnostics(socket);
+		Check(
+			!Cypress::CFB27::IsRedirectedSocketForDiagnostics(socket),
+			"closed socket should stop being traced");
+	}
+
+	void TestTlsServerHelloDoneDetection()
+	{
+		const std::uint8_t serverHelloDone[]{0x0E, 0x00, 0x00, 0x00};
+		const std::uint8_t certificate[]{0x0B, 0x00, 0x01, 0x00};
+		Check(
+			Cypress::CFB27::IsTlsServerHelloDone(serverHelloDone, sizeof(serverHelloDone)),
+			"TLS ServerHelloDone should be recognized");
+		Check(
+			!Cypress::CFB27::IsTlsServerHelloDone(certificate, sizeof(certificate)),
+			"other handshake messages should not be recognized as ServerHelloDone");
+	}
 }
 
 int main()
@@ -160,6 +188,8 @@ int main()
 	TestBridgeLog();
 	TestRedirectorMatching();
 	TestCandidateEndpointParsing();
+	TestRedirectedSocketDiagnosticTracking();
+	TestTlsServerHelloDoneDetection();
 	if (s_failures == 0)
 		std::cout << "CFB27 bridge tests passed\n";
 	return s_failures == 0 ? 0 : 1;

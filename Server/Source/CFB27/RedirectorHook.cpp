@@ -35,6 +35,7 @@ namespace
 		LPQOS,
 		LPQOS);
 	using SendFunction = int(WSAAPI*)(SOCKET, const char*, int, int);
+	using RecvFunction = int(WSAAPI*)(SOCKET, char*, int, int);
 	using WSASendFunction = int(WSAAPI*)(
 		SOCKET,
 		LPWSABUF,
@@ -43,6 +44,7 @@ namespace
 		DWORD,
 		LPWSAOVERLAPPED,
 		LPWSAOVERLAPPED_COMPLETION_ROUTINE);
+	using WSARecvFunction = int(WSAAPI*)(SOCKET, LPWSABUF, DWORD, LPDWORD, LPDWORD, LPWSAOVERLAPPED, LPWSAOVERLAPPED_COMPLETION_ROUTINE);
 	using WinHttpConnectFunction = HINTERNET(WINAPI*)(HINTERNET, LPCWSTR, INTERNET_PORT, DWORD);
 	using WinHttpOpenRequestFunction = HINTERNET(WINAPI*)(HINTERNET, LPCWSTR, LPCWSTR, LPCWSTR, LPCWSTR, LPCWSTR*, DWORD);
 	using WinHttpSendRequestFunction = BOOL(WINAPI*)(
@@ -61,7 +63,9 @@ namespace
 	CloseSocketFunction s_originalCloseSocket = nullptr;
 	WSAConnectFunction s_originalWSAConnect = nullptr;
 	SendFunction s_originalSend = nullptr;
+	RecvFunction s_originalRecv = nullptr;
 	WSASendFunction s_originalWSASend = nullptr;
+	WSARecvFunction s_originalWSARecv = nullptr;
 	WinHttpConnectFunction s_originalWinHttpConnect = nullptr;
 	WinHttpOpenRequestFunction s_originalWinHttpOpenRequest = nullptr;
 	WinHttpSendRequestFunction s_originalWinHttpSendRequest = nullptr;
@@ -79,6 +83,7 @@ namespace
 	std::atomic_uint s_tlsAlertTraceCount = 0;
 	std::atomic_uint s_winHttpTraceCount = 0;
 	std::atomic_uint s_closeTraceCount = 0;
+	std::atomic_uint s_receiveTraceCount = 0;
 	std::mutex s_redirectedSocketsMutex;
 	std::unordered_map<SOCKET, std::string> s_redirectedSockets;
 	bool s_enableCandidateEndpointRedirects = false;
@@ -157,8 +162,7 @@ namespace
 
 	void RememberRedirectedSocket(SOCKET socket, const std::string& info)
 	{
-		std::lock_guard lock(s_redirectedSocketsMutex);
-		s_redirectedSockets[socket] = info;
+		Cypress::CFB27::RegisterRedirectedSocketForDiagnostics(static_cast<std::uintptr_t>(socket), info);
 	}
 
 	std::string ForgetRedirectedSocket(SOCKET socket)
@@ -170,6 +174,53 @@ namespace
 		std::string info = it->second;
 		s_redirectedSockets.erase(it);
 		return info;
+	}
+
+	bool ShouldTraceSocketReceive(SOCKET socket)
+	{
+		return Cypress::CFB27::IsRedirectedSocketForDiagnostics(static_cast<std::uintptr_t>(socket));
+	}
+
+	std::string FormatAddressRva(void* address);
+
+	void TraceSocketReceive(const char* apiName, SOCKET socket, int result, int error, const char* data, std::size_t length)
+	{
+		if (!s_log || !ShouldTraceSocketReceive(socket))
+			return;
+		const unsigned int count = s_receiveTraceCount.fetch_add(1);
+		if (count >= 96)
+			return;
+		std::string preview;
+		const std::size_t previewLength = std::min<std::size_t>(length, 24);
+		constexpr char hex[] = "0123456789ABCDEF";
+		preview.reserve(previewLength * 2);
+		for (std::size_t index = 0; index < previewLength; ++index)
+		{
+			const auto value = static_cast<unsigned char>(data[index]);
+			preview.push_back(hex[value >> 4]);
+			preview.push_back(hex[value & 0x0F]);
+		}
+		s_log->Write(
+			"receive[" + std::to_string(count + 1) + "] api=" + apiName +
+			" socket=" + std::to_string(static_cast<unsigned long long>(socket)) +
+			" result=" + std::to_string(result) +
+			" wsa=" + std::to_string(error) +
+			(preview.empty() ? "" : " bytes=" + preview));
+
+		if (Cypress::CFB27::IsTlsServerHelloDone(
+			reinterpret_cast<const std::uint8_t*>(data), length))
+		{
+			void* frames[32] = {};
+			const USHORT captured = CaptureStackBackTrace(0, static_cast<DWORD>(std::size(frames)), frames, nullptr);
+			std::string stack;
+			for (USHORT index = 0; index < captured; ++index)
+			{
+				if (!stack.empty())
+					stack += ",";
+				stack += FormatAddressRva(frames[index]);
+			}
+			s_log->Write("tls-server-hello-done recv-stack=" + stack);
+		}
 	}
 
 	bool IsConfiguredCandidateEndpoint(const std::uint32_t address, const std::uint16_t port)
@@ -598,6 +649,28 @@ namespace
 		return s_originalSend(socket, buffer, length, flags);
 	}
 
+	int WSAAPI HookRecv(SOCKET socket, char* buffer, const int length, const int flags)
+	{
+		const int result = s_originalRecv(socket, buffer, length, flags);
+		const int error = result == SOCKET_ERROR ? WSAGetLastError() : 0;
+		TraceSocketReceive("recv", socket, result, error, buffer, result > 0 ? static_cast<std::size_t>(result) : 0);
+		if (result == SOCKET_ERROR)
+			WSASetLastError(error);
+		return result;
+	}
+
+	int WSAAPI HookWSARecv(SOCKET socket, LPWSABUF buffers, DWORD bufferCount, LPDWORD bytesReceived, LPDWORD flags, LPWSAOVERLAPPED overlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE completionRoutine)
+	{
+		const int result = s_originalWSARecv(socket, buffers, bufferCount, bytesReceived, flags, overlapped, completionRoutine);
+		const int error = result == SOCKET_ERROR ? WSAGetLastError() : 0;
+		const std::size_t received = result == 0 && bytesReceived ? *bytesReceived : 0;
+		const char* data = buffers && bufferCount > 0 && buffers[0].buf ? buffers[0].buf : "";
+		TraceSocketReceive("WSARecv", socket, result, error, data, received);
+		if (result == SOCKET_ERROR)
+			WSASetLastError(error);
+		return result;
+	}
+
 	int WSAAPI HookWSASend(
 		SOCKET socket,
 		LPWSABUF buffers,
@@ -694,6 +767,30 @@ namespace
 
 namespace Cypress::CFB27
 {
+	void RegisterRedirectedSocketForDiagnostics(const std::uintptr_t socket, const std::string& info)
+	{
+		std::lock_guard lock(s_redirectedSocketsMutex);
+		s_redirectedSockets[static_cast<SOCKET>(socket)] = info;
+	}
+
+	bool IsRedirectedSocketForDiagnostics(const std::uintptr_t socket)
+	{
+		std::lock_guard lock(s_redirectedSocketsMutex);
+		return s_redirectedSockets.contains(static_cast<SOCKET>(socket));
+	}
+
+	void UnregisterRedirectedSocketForDiagnostics(const std::uintptr_t socket)
+	{
+		std::lock_guard lock(s_redirectedSocketsMutex);
+		s_redirectedSockets.erase(static_cast<SOCKET>(socket));
+	}
+
+	bool IsTlsServerHelloDone(const std::uint8_t* data, const std::size_t length)
+	{
+		return data && length == 4 &&
+			data[0] == 0x0E && data[1] == 0x00 && data[2] == 0x00 && data[3] == 0x00;
+	}
+
 	bool IsBlazeRedirectorHost(const std::string& host)
 	{
 		std::string lowered = host;
@@ -792,9 +889,19 @@ namespace Cypress::CFB27
 			reinterpret_cast<LPVOID*>(&s_originalSend)) != MH_OK)
 			return false;
 		if (MH_CreateHook(
+			reinterpret_cast<LPVOID>(&recv),
+			reinterpret_cast<LPVOID>(&HookRecv),
+			reinterpret_cast<LPVOID*>(&s_originalRecv)) != MH_OK)
+			return false;
+		if (MH_CreateHook(
 			reinterpret_cast<LPVOID>(&WSASend),
 			reinterpret_cast<LPVOID>(&HookWSASend),
 			reinterpret_cast<LPVOID*>(&s_originalWSASend)) != MH_OK)
+			return false;
+		if (MH_CreateHook(
+			reinterpret_cast<LPVOID>(&WSARecv),
+			reinterpret_cast<LPVOID>(&HookWSARecv),
+			reinterpret_cast<LPVOID*>(&s_originalWSARecv)) != MH_OK)
 			return false;
 		void* winHttpConnect = ResolveWinHttpProc("WinHttpConnect");
 		void* winHttpOpenRequest = ResolveWinHttpProc("WinHttpOpenRequest");
@@ -828,7 +935,11 @@ namespace Cypress::CFB27
 
 		if (MH_EnableHook(reinterpret_cast<LPVOID>(&send)) != MH_OK)
 			return false;
+		if (MH_EnableHook(reinterpret_cast<LPVOID>(&recv)) != MH_OK)
+			return false;
 		if (MH_EnableHook(reinterpret_cast<LPVOID>(&WSASend)) != MH_OK)
+			return false;
+		if (MH_EnableHook(reinterpret_cast<LPVOID>(&WSARecv)) != MH_OK)
 			return false;
 		if (MH_EnableHook(reinterpret_cast<LPVOID>(&closesocket)) != MH_OK)
 			return false;
@@ -849,7 +960,7 @@ namespace Cypress::CFB27
 		if (MH_EnableHook(reinterpret_cast<LPVOID>(&GetAddrInfoW)) != MH_OK)
 			return false;
 
-		log.Write("installed redirector DNS/TCP hooks, WinHTTP local-cert allowance, and ProtoSSL TLS-alert stack tracing");
+		log.Write("installed redirector DNS/TCP hooks, redirected-socket receive tracing, WinHTTP local-cert allowance, and ProtoSSL TLS-alert stack tracing");
 		return true;
 	}
 }

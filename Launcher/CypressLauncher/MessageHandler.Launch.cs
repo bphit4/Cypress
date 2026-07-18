@@ -637,6 +637,20 @@ public partial class MessageHandler
 			startInfo.Environment["CYPRESS_CFB27_DYNASTY_PROFILE"] = m_cfb27PrivateProfile;
 			startInfo.Environment["CYPRESS_CFB27_BLAZE_HOST"] = "127.0.0.1";
 			startInfo.Environment["CYPRESS_CFB27_BLAZE_PORT"] = "27920";
+				// The DLL certificate-acceptance path (BearSSL end_chain force-OK) and the
+				// ProtoSSL runtime-code dump both default OFF in BridgeConfig. Without them the
+				// bridge only redirects DNS/TCP and never tries to make the game accept the local
+				// TLS certificate, so the handshake to the local Blaze redirector dies and every
+				// online-gated menu (Online Dynasty, Mascot Mashup, Play a Friend) stays disabled.
+				// Enable them so the normal private launch exercises the bypass and emits the RE
+				// evidence needed to locate the live ProtoSSL verify path.
+				startInfo.Environment["CYPRESS_CFB27_ENABLE_BEARSSL_BYPASS"] = "1";
+				startInfo.Environment["CYPRESS_CFB27_DUMP_RUNTIME_CODE"] = "1";
+				// Experimental guard-page execution probe over the ProtoSSL runtime-code regions.
+				// Diagnostic: logs which of those functions run during the live certificate
+				// decision so the real verify path can be pinned. Can slow the game; remove once
+				// the verify path is identified.
+				startInfo.Environment["CYPRESS_CFB27_ENABLE_PROTOSSL_PROBE"] = "1";
 			startInfo.Environment["CYPRESS_CFB27_PROFILE"] = m_cfb27PrivateProfile;
 			startInfo.Environment["CYPRESS_CFB27_RUN_DIR"] = string.IsNullOrWhiteSpace(m_cfb27PrivateRunDirectory)
 				? Path.Combine(GetAppdataDir(), "CFB27", "Private")

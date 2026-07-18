@@ -150,7 +150,8 @@ $blazeExe = Resolve-FirstExistingPath @(
 
 $schemaRoot = Resolve-FirstExistingPath @(
     (Join-Path $scriptRoot "Dynasty_Files"),
-    (Join-Path ([Environment]::GetFolderPath("DesktopDirectory")) "CFB27\Dynasty_Files")
+    (Join-Path ([Environment]::GetFolderPath("DesktopDirectory")) "CFB27\Dynasty_Files"),
+    (Join-Path ([Environment]::GetFolderPath("DesktopDirectory")) "CFB27\Release\Dynasty_Assets\2")
 ) "Dynasty_Files"
 
 $dllPath = Resolve-FirstExistingPath @(
@@ -208,9 +209,13 @@ $bridgeConfig = @(
     "profile=$Profile",
     "runDirectory=$runDir",
     "endpointsFile=$bridgeEndpointsFile",
-    "enableBearSslBypass=false",
+    "enableBearSslBypass=true",
     "dumpRuntimeCodeBytes=false",
-    "enableCandidateEndpointRedirects=false"
+    "enableCandidateEndpointRedirects=false",
+    "enableProtoSslVerifyProbe=false",
+    "enableCertVerifyHook=false",
+    "certVerifyForce=false",
+    "enableFailStateWatch=true"
 )
 Set-Content -LiteralPath $bridgeConfigPath -Value $bridgeConfig -Encoding ASCII
 Write-Log "wrote persistent bridge config=$bridgeConfigPath"

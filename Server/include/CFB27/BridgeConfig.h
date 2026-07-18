@@ -11,6 +11,8 @@ namespace Cypress::CFB27
 		"6BEDDE67760E425DB1165E8745BC472886B73DFF60FB4F127E573D3E40DA98B7";
 	inline constexpr const char* SupportedCurrentNormalSHA256 =
 		"3A587DEB7E2189E53F87A2899774BB3C66EA863B3C323B602A6820E855A7D6E6";
+	inline constexpr const char* SupportedJuly16NormalSHA256 =
+		"A048578530F7ED5967DF38803B63AD9B9F04FC71287F1E151C901A94AB240BFD";
 
 	struct SupportedBuild
 	{
@@ -30,6 +32,22 @@ namespace Cypress::CFB27
 		bool enableBearSslBypass = false;
 		bool dumpRuntimeCodeBytes = false;
 		bool enableCandidateEndpointRedirects = false;
+		// Experimental, off by default. When enabled, arms a guard-page execution probe over
+		// the known ProtoSSL runtime-code regions so a single handshake reveals which of those
+		// functions actually run during the live certificate decision (i.e. the real verify
+		// path that the BearSSL end_chain hook is missing). Diagnostic only; can slow the game.
+		bool enableProtoSslVerifyProbe = false;
+		// Experimental, off by default. Hooks the ProtoSSL function at RVA 0x16D1750 (a call
+		// target on the handshake verify path) and logs its return value. When certVerifyForce
+		// is also set, it overrides that return with 0 to force certificate acceptance.
+		bool enableCertVerifyHook = false;
+		bool certVerifyForce = false;
+		// Experimental, off by default. Hooks _ProtoSSLUpdate (RVA 0x16E1A40) to grab the
+		// per-connection state pointer, then arms a hardware (debug-register) write watch on
+		// the iState field state[0x370] and logs each write with a backtrace. The write of 3
+		// (fail) during Certificate processing is the certificate-reject verdict we want to
+		// patch. Requires enableProtoSslVerifyProbe OFF (both use single-step VEH).
+		bool enableFailStateWatch = false;
 
 		static BridgeConfig FromEnvironment();
 	};

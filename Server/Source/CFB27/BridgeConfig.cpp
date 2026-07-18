@@ -133,6 +133,14 @@ namespace
 			TryParseBool(value, config.dumpRuntimeCodeBytes);
 		else if (key == "enableCandidateEndpointRedirects")
 			TryParseBool(value, config.enableCandidateEndpointRedirects);
+		else if (key == "enableProtoSslVerifyProbe")
+			TryParseBool(value, config.enableProtoSslVerifyProbe);
+		else if (key == "enableCertVerifyHook")
+			TryParseBool(value, config.enableCertVerifyHook);
+		else if (key == "certVerifyForce")
+			TryParseBool(value, config.certVerifyForce);
+		else if (key == "enableFailStateWatch")
+			TryParseBool(value, config.enableFailStateWatch);
 	}
 
 	bool ReadConfigFile(const std::string& path, Cypress::CFB27::BridgeConfig& config)
@@ -192,6 +200,7 @@ namespace Cypress::CFB27
 			{"CollegeFB27_Trial.exe", SupportedTrialSHA256, true},
 			{"CollegeFB27.exe", SupportedNormalSHA256, false},
 			{"CollegeFB27.exe", SupportedCurrentNormalSHA256, false},
+			{"CollegeFB27.exe (2026-07-16)", SupportedJuly16NormalSHA256, false},
 		};
 	}
 
@@ -207,6 +216,10 @@ namespace Cypress::CFB27
 		config.enableBearSslBypass = false;
 		config.dumpRuntimeCodeBytes = false;
 		config.enableCandidateEndpointRedirects = false;
+		config.enableProtoSslVerifyProbe = false;
+		config.enableCertVerifyHook = false;
+		config.certVerifyForce = false;
+		config.enableFailStateWatch = false;
 
 		ApplyFirstConfigFile(config);
 
@@ -229,6 +242,14 @@ namespace Cypress::CFB27
 			config.dumpRuntimeCodeBytes = enabled;
 		if (TryReadBool("CYPRESS_CFB27_ENABLE_CANDIDATE_ENDPOINT_REDIRECTS", enabled))
 			config.enableCandidateEndpointRedirects = enabled;
+		if (TryReadBool("CYPRESS_CFB27_ENABLE_PROTOSSL_PROBE", enabled))
+			config.enableProtoSslVerifyProbe = enabled;
+		if (TryReadBool("CYPRESS_CFB27_ENABLE_CERT_HOOK", enabled))
+			config.enableCertVerifyHook = enabled;
+		if (TryReadBool("CYPRESS_CFB27_CERT_FORCE", enabled))
+			config.certVerifyForce = enabled;
+		if (TryReadBool("CYPRESS_CFB27_ENABLE_FAILWATCH", enabled))
+			config.enableFailStateWatch = enabled;
 		return config;
 	}
 
