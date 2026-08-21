@@ -40,6 +40,7 @@ const (
 	CommandGameReportingMatchContext  uint16 = 710
 	CommandGameReportingBotContext    uint16 = 745
 	CommandOSDKDynastyNotification    uint16 = 13
+	CommandOSDKGameInvite             uint16 = 17
 	CommandDynastyCreate              uint16 = 101
 	CommandUserSessionsUserAdded      uint16 = 0x0008
 	CommandUserSessionsData           uint16 = 0x0002
@@ -82,6 +83,10 @@ func (s *Service) registerDefaultHandlers() {
 	s.handlers[route{ComponentOSDK, 22}] = handleOSDKHeartbeat
 	s.handlers[route{ComponentOSDK, 12}] = handleOSDKFeatureStatus
 	s.handlers[route{ComponentOSDK, CommandOSDKDynastyNotification}] = handleEmptySuccess
+	// The H2H invite flow emits OSDK 2056/17 after selecting a friend. The
+	// captured payload is title-specific and opaque to the private server, but
+	// the successful Blaze acknowledgement is required before GameManager 4/105.
+	s.handlers[route{ComponentOSDK, CommandOSDKGameInvite}] = handleOSDKGameInvite
 	s.handlers[route{ComponentOSDK, 61}] = handleOSDKGameOnline
 	s.handlers[route{ComponentOSDK, 3001}] = handleOSDKLeaderboardBootstrap
 	s.handlers[route{ComponentUserSessions, 20}] = handleEmptySuccess
@@ -165,6 +170,10 @@ func (s *Service) registerDefaultHandlers() {
 }
 
 func handleEmptySuccess(_ context.Context, _ blaze.Frame) ([]blaze.Field, uint16) {
+	return nil, 0
+}
+
+func handleOSDKGameInvite(_ context.Context, _ blaze.Frame) ([]blaze.Field, uint16) {
 	return nil, 0
 }
 

@@ -38,6 +38,8 @@ const (
 	CommandGameManagerSetGameState   uint16 = 3
 	CommandGameManagerSetGameSetting uint16 = 4
 	CommandGameManagerUpdateAttrs    uint16 = 8
+	CommandGameManagerJoinGame       uint16 = 9
+	CommandGameManagerGetGameData    uint16 = 105
 	CommandGameManagerConnectQoS     uint16 = 65
 	CommandGameManagerQoSReport      uint16 = 171
 	CommandGameManagerMeshEndpoint   uint16 = 177
@@ -107,8 +109,9 @@ func newGameRegistry() *gameRegistry {
 	return &gameRegistry{games: map[int64]*gameSession{}, nextID: capturedGameID - 1}
 }
 
-// createOrJoin puts the caller in the first game that has room, otherwise starts
-// a new one. Play-a-Friend is two-player, so "room" means fewer than two.
+// createOrJoin puts the caller in the only unambiguous open game, otherwise
+// starts a new one. Targeted invite joins use targetedJoin below; this method is
+// only the compatibility path for clients that omit a game id.
 func (r *gameRegistry) createOrJoin(player *gamePlayer) (*gameSession, bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -127,12 +130,22 @@ func (r *gameRegistry) createOrJoin(player *gamePlayer) (*gameSession, bool) {
 			}
 		}
 	}
-	for _, game := range r.games {
-		if len(game.players) < 2 {
-			player.slot = int64(len(game.players))
-			game.players = append(game.players, player)
-			return game, false
+	var open *gameSession
+	for _, id := range sortedGameIDs(r.games) {
+		game := r.games[id]
+		if len(game.players) >= 2 {
+			continue
 		}
+		if open != nil {
+			open = nil
+			break
+		}
+		open = game
+	}
+	if open != nil {
+		player.slot = int64(len(open.players))
+		open.players = append(open.players, player)
+		return open, false
 	}
 	r.nextID++
 	game := &gameSession{id: r.nextID}
@@ -140,6 +153,55 @@ func (r *gameRegistry) createOrJoin(player *gamePlayer) (*gameSession, bool) {
 	game.players = append(game.players, player)
 	r.games[game.id] = game
 	return game, true
+}
+
+// targetedJoin seats the caller in the requested game and never falls back to
+// a different room. The bool is false for a missing/full target.
+func (r *gameRegistry) targetedJoin(gameID int64, player *gamePlayer) (*gameSession, bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	game, ok := r.games[gameID]
+	if !ok {
+		return nil, false
+	}
+	for _, seated := range game.players {
+		if seated.playerKey == player.playerKey {
+			seated.connectionID = player.connectionID
+			seated.connectionGroup = player.connectionGroup
+			seated.externalIP = player.externalIP
+			seated.externalPort = player.externalPort
+			return game, true
+		}
+	}
+	if len(game.players) >= 2 {
+		return nil, false
+	}
+	player.slot = int64(len(game.players))
+	game.players = append(game.players, player)
+	return game, true
+}
+
+// game returns the live session for an exact id.
+func (r *gameRegistry) game(gameID int64) (*gameSession, bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	game, ok := r.games[gameID]
+	return game, ok
+}
+
+// openGames returns open rooms in id order. It is used by diagnostics and
+// targeted discovery, and never returns a room with two seats.
+func (r *gameRegistry) openGames() []*gameSession {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	var open []*gameSession
+	for _, id := range sortedGameIDs(r.games) {
+		game := r.games[id]
+		if len(game.players) < 2 {
+			open = append(open, game)
+		}
+	}
+	return open
 }
 
 // playersOf snapshots everyone in a game, in seat order.
@@ -195,9 +257,10 @@ func (r *gameRegistry) removeFromGame(gameID int64, personaID int64) {
 	}
 }
 
-func (r *gameRegistry) remove(playerKey uint32) {
+func (r *gameRegistry) remove(playerKey uint32) []int64 {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	var removed []int64
 	for id, game := range r.games {
 		kept := game.players[:0]
 		for _, p := range game.players {
@@ -208,8 +271,10 @@ func (r *gameRegistry) remove(playerKey uint32) {
 		game.players = kept
 		if len(game.players) == 0 {
 			delete(r.games, id)
+			removed = append(removed, id)
 		}
 	}
+	return removed
 }
 
 // ipv4ToUint32 converts a dotted address to the integer form Blaze uses (the
@@ -327,44 +392,7 @@ func (s *Service) playerFromRequest(ctx context.Context, request blaze.Frame) *g
 	return player
 }
 
-// handleGameManagerCreateOrJoin answers 4/10. The reply shape is taken verbatim
-// from the capture: external-session ids (empty for PC), the game id, and the
-// join-game-status / call flags.
-func (s *Service) handleGameManagerCreateOrJoinGame(ctx context.Context, request blaze.Frame) ([]blaze.Field, uint16) {
-	cs := s.clientSessionFrom(ctx)
-	player := s.playerFromRequest(ctx, request)
-	requestConn := player.connectionID
-	game, _ := s.games.createOrJoin(player)
-	cs.activeGame.Store(game.id)
-
-	// The client shows "PLEASE WAIT..." until it receives the game-setup
-	// notification that follows create-or-join; the reply alone is not enough.
-	// It is built from the captured frame with this session's identity
-	// substituted in — replaying the capture verbatim crashed the client,
-	// because it could not find itself in the captured roster.
-	go func(connectionID string, gameID int64, joiner *gamePlayer) {
-		// Deliver after the create-or-join reply has gone out, so the client sees
-		// them in the order the capture shows.
-		time.Sleep(150 * time.Millisecond)
-		if frame, err := s.buildGameSetupNotification(game, s.games.playersOf(gameID)); err == nil {
-			s.sendToConnection(connectionID, frame)
-			// The capture follows the setup with the transition into PRE_GAME; the
-			// lobby will not progress without it.
-			if state, err := gameStateNotification(gameID, gameStatePreGame); err == nil {
-				s.sendToConnection(connectionID, state)
-			}
-		} else {
-			s.record(Event{
-				Time:         time.Now().UTC(),
-				RunID:        s.config.RunID,
-				ConnectionID: connectionID,
-				Status:       "gamesetup-build-failed",
-				DecodeError:  err.Error(),
-			})
-		}
-		s.broadcastPlayerJoining(gameID, joiner)
-	}(requestConn, game.id, player)
-
+func gameJoinReply(gameID int64) []blaze.Field {
 	emptyString := func(tag string) blaze.Field {
 		return blaze.Field{Tag: tag, Type: blaze.TypeString, Value: ""}
 	}
@@ -379,10 +407,79 @@ func (s *Service) handleGameManagerCreateOrJoinGame(ctx context.Context, request
 				{Tag: "MPAU", Type: blaze.TypeStruct, Value: []blaze.Field{emptyString("CONS")}},
 			}},
 		}},
-		{Tag: "GID", Type: blaze.TypeInteger, Value: game.id},
+		{Tag: "GID", Type: blaze.TypeInteger, Value: gameID},
 		{Tag: "JGS", Type: blaze.TypeInteger, Value: int64(0)},
 		{Tag: "OCAL", Type: blaze.TypeInteger, Value: int64(0)},
-	}, 0
+	}
+}
+
+// refreshGameForPlayers sends the current setup/state to every seated player.
+// A targeted guest can arrive after the host's first setup, so both sides need
+// the refreshed roster before the reciprocal joining notifications.
+func (s *Service) refreshGameForPlayers(gameID int64) {
+	players := s.games.playersOf(gameID)
+	game, ok := s.games.game(gameID)
+	if !ok {
+		return
+	}
+	for _, player := range players {
+		if frame, err := s.buildGameSetupNotification(game, players); err == nil {
+			s.sendToConnection(player.connectionID, frame)
+		} else {
+			s.record(Event{
+				Time:         time.Now().UTC(),
+				RunID:        s.config.RunID,
+				ConnectionID: player.connectionID,
+				Status:       "gamesetup-build-failed",
+				DecodeError:  err.Error(),
+			})
+		}
+		if state, err := gameStateNotification(gameID, gameStatePreGame); err == nil {
+			s.sendToConnection(player.connectionID, state)
+		}
+	}
+}
+
+// finishGameJoin delivers the setup and peer notifications after the direct
+// GameManager reply has gone out.
+func (s *Service) finishGameJoin(gameID int64, joiner *gamePlayer) {
+	time.Sleep(150 * time.Millisecond)
+	s.refreshGameForPlayers(gameID)
+	s.broadcastPlayerJoining(gameID, joiner)
+}
+
+// handleGameManagerCreateOrJoin answers 4/10. The reply shape is taken verbatim
+// from the capture: external-session ids (empty for PC), the game id, and the
+// join-game-status / call flags.
+func (s *Service) handleGameManagerCreateOrJoinGame(ctx context.Context, request blaze.Frame) ([]blaze.Field, uint16) {
+	cs := s.clientSessionFrom(ctx)
+	player := s.playerFromRequest(ctx, request)
+	game, _ := s.games.createOrJoin(player)
+	cs.activeGame.Store(game.id)
+	s.offerGameToConnectedPlayers(game.id, cs.identity.personaID)
+	go s.finishGameJoin(game.id, player)
+	return gameJoinReply(game.id), 0
+}
+
+// handleGameManagerJoinGame answers the capture-backed targeted 4/9 path.
+// Unknown or full targets are rejected without mutating another game.
+func (s *Service) handleGameManagerJoinGame(ctx context.Context, request blaze.Frame) ([]blaze.Field, uint16) {
+	cs := s.clientSessionFrom(ctx)
+	gameID, ok := gameIDFromRequest(request)
+	if !ok {
+		return nil, ErrorSystem
+	}
+	player := s.playerFromRequest(ctx, request)
+	game, ok := s.games.targetedJoin(gameID, player)
+	if !ok {
+		return nil, ErrorSystem
+	}
+	cs.activeGame.Store(game.id)
+	if s.invites != nil {
+		s.invites.consume(cs.identity.personaID, game.id, time.Now().UTC())
+	}
+	go s.finishGameJoin(game.id, player)
+	return gameJoinReply(game.id), 0
 }
 
 // playerJoiningNotification builds 4/21 — the frame that carries a player's
@@ -565,14 +662,27 @@ func (s *Service) handleRemovePlayer(ctx context.Context, request blaze.Frame) (
 		s.broadcastToGame(gameID, frame)
 	}
 	s.games.removeFromGame(gameID, personaID)
+	if s.invites != nil {
+		s.invites.removeGame(gameID)
+		s.invites.removePlayer(personaID)
+	}
 	if cs.activeGame.Load() == gameID {
 		cs.activeGame.Store(0)
 	}
 	return nil, 0
 }
 
+// 4/67 is the group-leave half of the same lifecycle. The client can send it
+// without the richer 4/22 reason fields, so reuse the removal path and let the
+// caller identity fill the missing PID.
+func (s *Service) handleLeaveGroup(ctx context.Context, request blaze.Frame) ([]blaze.Field, uint16) {
+	return s.handleRemovePlayer(ctx, request)
+}
+
 func (s *Service) registerGameManagerHandlers() {
 	s.handlers[route{ComponentGameManager, CommandGameManagerCreateOrJoin}] = s.handleGameManagerCreateOrJoinGame
+	s.handlers[route{ComponentGameManager, CommandGameManagerJoinGame}] = s.handleGameManagerJoinGame
+	s.handlers[route{ComponentGameManager, CommandGameManagerGetGameData}] = s.handleGameManagerGetGameData
 	// Lobby changes must reach the other players; acknowledging them silently
 	// left each client talking to itself. See lobby_relay.go.
 	s.handlers[route{ComponentGameManager, CommandGameManagerUpdateAttrs}] = s.handleGameAttributeUpdate
@@ -587,15 +697,14 @@ func (s *Service) registerGameManagerHandlers() {
 	// bytes, not with nothing.
 	s.handlers[route{ComponentGameManager, CommandGameManagerMeshEndpoint}] = s.handleExternalSessionUpdate
 	for _, command := range []uint16{
-		9, 12, 16,
+		12, 16,
 		CommandGameManagerConnectQoS, // 65
 		66,
-		CommandGameManagerLeaveGroup, // 67
-		105,
 		CommandGameManagerQoSReport, // 171
 	} {
 		s.handlers[route{ComponentGameManager, command}] = handleGameManagerAck
 	}
+	s.handlers[route{ComponentGameManager, CommandGameManagerLeaveGroup}] = s.handleLeaveGroup
 }
 
 //go:embed fixtures/gm-20-notify.bin

@@ -76,6 +76,7 @@ type Service struct {
 	// startup), so single-player keeps working exactly as before.
 	// H2H game sessions (Blaze GameManager). Peer-to-peer brokering only.
 	games         *gameRegistry
+	invites       *gameInviteRegistry
 	writeMu       sync.Mutex
 	seededSession atomic.Int64
 	seededTeam    atomic.Int64
@@ -155,6 +156,7 @@ func NewService(cfg Config) *Service {
 		dynasty:              NewDynastyClient(cfg.DynastyURL),
 		events:               make([]Event, 0, 128),
 		games:                newGameRegistry(),
+		invites:              newGameInviteRegistry(),
 	}
 	if cfg.CoachCatalog != "" {
 		svc.coachCatalog, svc.coachCatalogError = cfb27assets.LoadCoachCatalog(cfg.CoachCatalog)
@@ -315,7 +317,11 @@ func (s *Service) serveConnection(ctx context.Context, connectionID string, seq 
 	ctx = withConnectionID(ctx, connectionID)
 	defer func() {
 		if session.releaseConnection() <= 0 {
-			s.games.remove(session.playerKey)
+			removedGames := s.games.remove(session.playerKey)
+			for _, gameID := range removedGames {
+				s.invites.removeGame(gameID)
+			}
+			s.invites.removePlayer(session.identity.personaID)
 		}
 		s.dropClientSession(connectionID)
 		s.connections.Delete(connectionID)
