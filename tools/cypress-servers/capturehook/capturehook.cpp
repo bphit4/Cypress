@@ -22,9 +22,23 @@
 //   Mode=probe            ; probe (safe, default) or hook
 //   DumpDir=              ; where to write; defaults beside the DLL
 //   [ProtoSSL]
-//   Connect=0x016D4120    ; RVAs from the game image base
-//   Send=0x016D4940
-//   Recv=0x016D4830
+//   Connect=0x016D56C0    ; RVAs from the game image base
+//   Send=0x016D5EE0
+//   Recv=0x016D5DD0
+//
+// Those RVAs are for game build 9185423 (CollegeFB27.exe of 2026-09-03). The
+// previous build 9171310 had them at 0x016D4120 / 0x016D4940 / 0x016D4830.
+//
+// To re-point them after a game update: the exe is packed, so the prologues do
+// not exist on disk — they appear only once decrypted in memory, so work from a
+// full-process dump of the running game. Search it for the 24-byte prologues
+// this file's probe mode logs (they survive a rebuild; their addresses do not).
+// Send and Recv start with ordinary MSVC frames and match on the order of a
+// thousand times, so the discriminator is the layout: the three sit at fixed
+// distances from each other (Recv = Connect+0x710, Send = Recv+0x110), and only
+// one triple satisfies both. Do NOT derive them from the bridge's verifier
+// signature — across this update that moved +0x11C0 while these moved +0x15A0,
+// and an address off by even one byte lands mid-instruction.
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>

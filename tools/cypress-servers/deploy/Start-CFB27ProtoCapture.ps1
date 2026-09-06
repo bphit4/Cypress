@@ -27,9 +27,9 @@ param(
     [ValidateSet("probe", "hook", "hwbp")]
     [string]$Mode = "probe",
     [string]$ProcessName = "CollegeFB27.exe",
-    [string]$Connect = "0x016D4120",
-    [string]$Send = "0x016D4940",
-    [string]$Recv = "0x016D4830",
+    [string]$Connect = "0x016D56C0",
+    [string]$Send = "0x016D5EE0",
+    [string]$Recv = "0x016D5DD0",
     # Which functions to hook, for bisecting a crash. Default to Connect only:
     # it is called rarely, so if hooking crashes, it is the hook mechanism, not a
     # torn hot-path write. Once Connect proves safe, add Recv,Send.
